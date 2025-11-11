@@ -2120,6 +2120,59 @@
         -1072,
         1340
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generar submenú para actualizar precios\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst userData = $('Buscar Usuario').first().json;\n\nconsole.log('📋 [Submenú Precios] Generando opciones');\n\n// ✅ GUARDAR ESTADO EN BD para prevenir bucles\ntry {\n  const { data: activeSessions } = await $supabase\n    .from('line_sessions')\n    .select('session_id')\n    .eq('channel_id', phoneNumber)\n    .is('session_end', null)\n    .order('session_start', { ascending: false })\n    .limit(1);\n\n  if (activeSessions && activeSessions.length > 0) {\n    await $supabase\n      .from('line_sessions')\n      .update({ \n        awaiting_continuation: true,\n        last_activity_at: new Date().toISOString(),\n        session_metadata: { \n          awaiting_submenu: 'precos',\n          submenu_timestamp: new Date().toISOString()\n        }\n      })\n      .eq('session_id', activeSessions[0].session_id);\n    \n    console.log('✅ [Submenú Precios] Estado guardado');\n  }\n} catch (error) {\n  console.warn('⚠️ [Submenú Precios] Error guardando estado:', error.message);\n}\n\nconst mensaje = `💰 *ATUALIZAR PREÇOS*\n\nEscolha uma opção:\n\n1️⃣ Ver status dos preços cadastrados\n2️⃣ Atualizar/Cadastrar novos preços\n\n💬 Digite o número da opção desejada.`;\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    user_data: userData,\n    restaurant_id: userData.restaurant_id,\n    person_id: userData.id\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        328
+      ],
+      "id": "39cc28f9-c90a-4240-a285-0d4295d909cb",
+      "name": "Generar Submenú Precios"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Detectar opción del submenú de precios\nconst mensaje = $('Extraer Datos WhatsApp').first().json.message.toLowerCase().trim();\nconst userData = $('Buscar Usuario').first().json;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🔍 [Submenú Precios] Detectando opción:', mensaje);\n\nlet opcion = 'actualizar';\n\nif (mensaje.includes('1') || mensaje.includes('ver') || mensaje.includes('status')) {\n  opcion = 'ver_status';\n} else if (mensaje.includes('2') || mensaje.includes('atualizar') || mensaje.includes('cadastrar')) {\n  opcion = 'actualizar';\n}\n\nconsole.log('✅ [Submenú Precios] Opción:', opcion);\n\n// Limpiar estado del submenú en BD\ntry {\n  await $supabase\n    .from('line_sessions')\n    .update({ \n      awaiting_continuation: false,\n      session_metadata: null\n    })\n    .eq('channel_id', phoneNumber)\n    .eq('awaiting_continuation', true);\n} catch (error) {\n  console.warn('⚠️ Error limpiando estado:', error.message);\n}\n\nreturn [{\n  json: {\n    opcion_precios: opcion,\n    phone_number: phoneNumber,\n    user_data: userData,\n    restaurant_id: userData.restaurant_id,\n    person_id: userData.id,\n    message: $('Extraer Datos WhatsApp').first().json.message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        328
+      ],
+      "id": "021a53b6-da06-44c9-b6f3-e7f6477d8006",
+      "name": "Detectar Opción Submenú Precios"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "={{ $json.opcion_precios === 'ver_status' ? 0 : 1 }}"
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        0,
+        328
+      ],
+      "id": "59d183ca-9103-4f90-9602-924d513f2617",
+      "name": "Router Submenú Precios"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ver status de precios - Versión simplificada\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log('📊 [Ver Status Preços]');\n\nconst mensaje = `📊 *STATUS DOS PREÇOS*\n\nEsta funcionalidade mostrará:\n✅ Total de fornecedores cadastrados  \n✅ Total de produtos com preços\n✅ Produtos com preços desatualizados\n\n🚧 Funcionalidade em desenvolvimento\n\nPor enquanto, você pode:\n💬 Digite \"2\" para atualizar preços\n💬 Digite \"menu\" para voltar ao menu principal`;\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        228
+      ],
+      "id": "e5b84311-248b-4eb2-8e96-8d0c56fec53f",
+      "name": "Ver Status Preços"
     }
   ],
   "pinData": {},
@@ -2672,7 +2725,7 @@
         ],
         [
           {
-            "node": "Preparar Datos Subir Precios",
+            "node": "Generar Submenú Precios",
             "type": "main",
             "index": 0
           }
@@ -3244,6 +3297,57 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Submenú Precios": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detectar Opción Submenú Precios": {
+      "main": [
+        [
+          {
+            "node": "Router Submenú Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router Submenú Precios": {
+      "main": [
+        [
+          {
+            "node": "Ver Status Preços",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Datos Subir Precios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ver Status Preços": {
+      "main": [
         [
           {
             "node": "Enviar Respuesta",
