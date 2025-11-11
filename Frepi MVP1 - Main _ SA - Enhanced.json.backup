@@ -1534,7 +1534,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Recomendación] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Recomendación',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const resultados = $input.first().json.resultados;\n  const phoneNumber = $input.first().json.phone_number;\n  const priceSensitivity = $input.first().json.price_sensitivity;\n\n  console.log('💎 [Generar Recomendación] Creando mensaje conversacional');\n\n  // Obtener marcas preferidas del usuario\n  const { data: restaurant } = await $supabase\n    .from('restaurants')\n    .select('category_preferences')\n    .eq('id', $input.first().json.restaurant_id)\n    .single();\n\n  const categoryPrefs = restaurant?.category_preferences || {};\n  const marcasPreferidas = categoryPrefs.marcas_preferidas || [];\n  \n  console.log('📋 [Recomendación] Marcas preferidas:', marcasPreferidas);\n\n  let mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\n  let totalEstimado = 0;\n  const fornecedoresUsados = new Set();\n\n  // Procesar cada producto\n  for (const item of resultados) {\n    if (item.no_encontrado) {\n      mensaje += `⚠️ *${item.produto}*\\n`;\n      mensaje += `   Produto não encontrado no catálogo.\\n\\n`;\n      continue;\n    }\n    \n    if (item.sin_precios || !item.opciones || item.opciones.length === 0) {\n      mensaje += `⚠️ *${item.produto}*\\n`;\n      mensaje += `   Sem preços cadastrados.\\n\\n`;\n      continue;\n    }\n\n    // ✅ NUEVO FORMATO CONVERSACIONAL\n    mensaje += `📦 *${item.produto.toUpperCase()}* (${item.quantidade} ${item.unidade})\\n`;\n    \n    // 1. Encontrar el MÁS BARATO\n    const masBarato = item.opciones.reduce((min, curr) => \n      curr.price < min.price ? curr : min\n    , item.opciones[0]);\n\n    // 2. Encontrar si hay MARCAS PREFERIDAS\n    const opcionesPreferidas = item.opciones.filter(opt => {\n      const productLower = opt.product_name.toLowerCase();\n      return marcasPreferidas.some(marca => \n        productLower.includes(marca.toLowerCase())\n      );\n    });\n\n    // 3. Ordenar opciones preferidas por precio\n    opcionesPreferidas.sort((a, b) => a.price - b.price);\n    const mejorPreferida = opcionesPreferidas[0];\n\n    // 4. MOSTRAR RECOMENDACIONES\n    \n    // Siempre mostrar el más barato primero\n    const subtotalBarato = masBarato.price * item.quantidade;\n    mensaje += `\\n   💰 *Mais barato:* ${masBarato.product_name}\\n`;\n    mensaje += `      Fornecedor: ${masBarato.supplier_name}\\n`;\n    mensaje += `      Preço: R$ ${masBarato.price.toFixed(2)}/${masBarato.unit}\\n`;\n    mensaje += `      Subtotal: R$ ${subtotalBarato.toFixed(2)}\\n`;\n    \n    fornecedoresUsados.add(masBarato.supplier_name);\n    \n    // Si hay marca preferida Y es diferente del más barato, mostrarla\n    if (mejorPreferida && mejorPreferida.supplier_id !== masBarato.supplier_id) {\n      const subtotalPreferida = mejorPreferida.price * item.quantidade;\n      const diferenca = subtotalPreferida - subtotalBarato;\n      \n      mensaje += `\\n   ⭐ *Sua preferência:* ${mejorPreferida.product_name}\\n`;\n      mensaje += `      Fornecedor: ${mejorPreferida.supplier_name}\\n`;\n      mensaje += `      Preço: R$ ${mejorPreferida.price.toFixed(2)}/${mejorPreferida.unit}\\n`;\n      mensaje += `      Subtotal: R$ ${subtotalPreferida.toFixed(2)}`;\n      \n      if (diferenca > 0) {\n        mensaje += ` (+R$ ${diferenca.toFixed(2)})`;\n      }\n      mensaje += `\\n`;\n      \n      fornecedoresUsados.add(mejorPreferida.supplier_name);\n    } else if (mejorPreferida && mejorPreferida.supplier_id === masBarato.supplier_id) {\n      mensaje += `   ⭐ (Também é sua preferência!)\\n`;\n    }\n\n    // Mostrar otras alternativas si hay (máximo 2)\n    const otras = item.opciones\n      .filter(opt => \n        opt.supplier_id !== masBarato.supplier_id && \n        (!mejorPreferida || opt.supplier_id !== mejorPreferida.supplier_id)\n      )\n      .slice(0, 2);\n\n    if (otras.length > 0) {\n      mensaje += `\\n   📋 Outras opções:\\n`;\n      otras.forEach(alt => {\n        const diff = ((alt.price - masBarato.price) / masBarato.price * 100);\n        mensaje += `      • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (+${diff.toFixed(0)}%)\\n`;\n      });\n    }\n\n    mensaje += `\\n`;\n    \n    // Usar el más barato para el total estimado\n    totalEstimado += subtotalBarato;\n  }\n\n  mensaje += `━━━━━━━━━━━━━━━━\\n`;\n  mensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n`;\n  mensaje += `   (usando as opções mais baratas)\\n\\n`;\n\n  if (fornecedoresUsados.size === 1) {\n    mensaje += `✨ Você pode comprar tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n  } else {\n    mensaje += `🏪 Fornecedores sugeridos:\\n`;\n    [...fornecedoresUsados].forEach(f => {\n      mensaje += `   • ${f}\\n`;\n    });\n    mensaje += `\\n`;\n  }\n\n  // Explicar criterio\n  if (marcasPreferidas.length > 0) {\n    mensaje += `💡 _Considerei suas marcas preferidas: ${marcasPreferidas.join(', ')}_\\n\\n`;\n  }\n\n  mensaje += `Esta é uma recomendação. Você faz o pedido direto com os fornecedores! 👍`;\n\n  console.log('✅ [Generar Recomendación] Mensaje creado con formato conversacional');\n\n  return [{\n    json: {\n      output: mensaje,\n      phone_number: phoneNumber,\n      total_estimado: totalEstimado,\n      fornecedores: [...fornecedoresUsados]\n    }\n  }];\n\n} catch (error) {\n  console.error(`[Generar Recomendación] Error: ${error.message}`);\n  console.error(`[Generar Recomendación] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Recomendación',\n      phone_number: input?.json?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
+        "jsCode": "// ===== ERROR HANDLING & INPUT VALIDATION =====\ntry {\n  // Validate input\n  const input = $input.first();\n  if (!input || !input.json) {\n    console.error('[Generar Recomendación] Input vacío o inválido');\n    return [{\n      json: {\n        error: true,\n        error_message: 'Input inválido',\n        error_node: 'Generar Recomendación',\n        phone_number: 'unknown'\n      }\n    }];\n  }\n\n  // Original code starts here\n  const resultados = $input.first().json.resultados;\nconst phoneNumber = $input.first().json.phone_number;\nconst priceSensitivity = $input.first().json.price_sensitivity;\n\nconsole.log('💎 [Generar Recomendación] Creando mensaje para usuario');\n\nlet mensaje = '🎯 *RECOMENDAÇÃO DE COMPRA*\\n\\n';\n\nlet totalEstimado = 0;\nlet fornecedorPrincipal = null;\nconst fornecedoresUsados = new Set();\n\nfor (const item of resultados) {\n  if (item.no_encontrado) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Produto não encontrado no catálogo.\\n\\n`;\n    continue;\n  }\n  \n  if (item.sin_precios) {\n    mensaje += `⚠️ *${item.produto}*\\n`;\n    mensaje += `Sem preços cadastrados.\\n\\n`;\n    continue;\n  }\n  \n  const mejor = item.mejor_opcion;\n  const subtotal = mejor.price * item.quantidade;\n  totalEstimado += subtotal;\n  \n  fornecedoresUsados.add(mejor.supplier_name);\n  \n  mensaje += `✅ *${item.produto}*\\n`;\n  mensaje += `📦 ${item.quantidade} ${item.unidade}\\n`;\n  mensaje += `🏪 *${mejor.supplier_name}*`;\n  if (mejor.is_preferred) mensaje += ' ⭐ (Preferido)';\n  mensaje += `\\n💰 R$ ${mejor.price.toFixed(2)}/${mejor.unit}`;\n  mensaje += ` = *R$ ${subtotal.toFixed(2)}*\\n`;\n  \n  // Mostrar alternativas si hay\n  if (item.opciones.length > 1) {\n    mensaje += `\\n_Outras opções:_\\n`;\n    for (let i = 1; i < Math.min(3, item.opciones.length); i++) {\n      const alt = item.opciones[i];\n      const diff = ((alt.price - mejor.price) / mejor.price * 100).toFixed(0);\n      const signo = diff > 0 ? '+' : '';\n      mensaje += `   • ${alt.supplier_name}: R$ ${alt.price.toFixed(2)} (${signo}${diff}%)\\n`;\n    }\n  }\n  \n  mensaje += '\\n';\n}\n\nmensaje += `━━━━━━━━━━━━━━━━\\n`;\nmensaje += `💵 *TOTAL ESTIMADO: R$ ${totalEstimado.toFixed(2)}*\\n\\n`;\n\nif (fornecedoresUsados.size === 1) {\n  mensaje += `✨ Você pode fazer tudo com *${[...fornecedoresUsados][0]}*!\\n\\n`;\n} else {\n  mensaje += `📋 Fornecedores sugeridos: ${[...fornecedoresUsados].join(', ')}\\n\\n`;\n}\n\n// Explicar criterio\nif (priceSensitivity < 0.4) {\n  mensaje += '💡 _Priorizei menor preço_\\n';\n} else if (priceSensitivity > 0.6) {\n  mensaje += '💡 _Priorizei qualidade e fornecedores preferidos_\\n';\n} else {\n  mensaje += '💡 _Priorizei equilíbrio entre preço e qualidade_\\n';\n}\n\nmensaje += '\\nEsta é uma recomendação. Você precisa fazer o pedido diretamente com os fornecedores? 👍';\n\nconsole.log('✅ [Generar Recomendación] Mensaje creado');\n\n// Agregar nota si hay precios desactualizados\nif (hayProblemas) {\n  mensaje += `\\n\\n⚠️ *Nota Importante*\n\nAlguns preços estão desatualizados (> 30 dias).\nRecomendo atualizar seus preços para recomendações mais precisas.\n\nDigite \"2\" para atualizar preços agora.`;\n}\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    total_estimado: totalEstimado,\n    fornecedores: [...fornecedoresUsados]\n  }\n}];\n\n} catch (error) {\n  console.error(`[Generar Recomendación] Error: ${error.message}`);\n  console.error(`[Generar Recomendación] Stack: ${error.stack}`);\n\n  return [{\n    json: {\n      error: true,\n      error_message: error.message,\n      error_node: 'Generar Recomendación',\n      phone_number: input?.json?.phone_number || input?.json?.user_data?.phone_number || 'unknown',\n      output: 'Desculpe, algo deu errado. Por favor, tente novamente ou digite \"menu\" para voltar.'\n    }\n  }];\n}\n// ===== END ERROR HANDLING ====="
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -2120,59 +2120,6 @@
         -1072,
         1340
       ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Generar submenú para actualizar precios\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\nconst userData = $('Buscar Usuario').first().json;\n\nconsole.log('📋 [Submenú Precios] Generando opciones');\n\n// ✅ GUARDAR ESTADO EN BD para prevenir bucles\ntry {\n  const { data: activeSessions } = await $supabase\n    .from('line_sessions')\n    .select('session_id')\n    .eq('channel_id', phoneNumber)\n    .is('session_end', null)\n    .order('session_start', { ascending: false })\n    .limit(1);\n\n  if (activeSessions && activeSessions.length > 0) {\n    await $supabase\n      .from('line_sessions')\n      .update({ \n        awaiting_continuation: true,\n        last_activity_at: new Date().toISOString(),\n        session_metadata: { \n          awaiting_submenu: 'precos',\n          submenu_timestamp: new Date().toISOString()\n        }\n      })\n      .eq('session_id', activeSessions[0].session_id);\n    \n    console.log('✅ [Submenú Precios] Estado guardado');\n  }\n} catch (error) {\n  console.warn('⚠️ [Submenú Precios] Error guardando estado:', error.message);\n}\n\nconst mensaje = `💰 *ATUALIZAR PREÇOS*\n\nEscolha uma opção:\n\n1️⃣ Ver status dos preços cadastrados\n2️⃣ Atualizar/Cadastrar novos preços\n\n💬 Digite o número da opção desejada.`;\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber,\n    user_data: userData,\n    restaurant_id: userData.restaurant_id,\n    person_id: userData.id\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -400,
-        328
-      ],
-      "id": "39cc28f9-c90a-4240-a285-0d4295d909cb",
-      "name": "Generar Submenú Precios"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Detectar opción del submenú de precios\nconst mensaje = $('Extraer Datos WhatsApp').first().json.message.toLowerCase().trim();\nconst userData = $('Buscar Usuario').first().json;\nconst phoneNumber = $('Extraer Datos WhatsApp').first().json.phone_number;\n\nconsole.log('🔍 [Submenú Precios] Detectando opción:', mensaje);\n\nlet opcion = 'actualizar';\n\nif (mensaje.includes('1') || mensaje.includes('ver') || mensaje.includes('status')) {\n  opcion = 'ver_status';\n} else if (mensaje.includes('2') || mensaje.includes('atualizar') || mensaje.includes('cadastrar')) {\n  opcion = 'actualizar';\n}\n\nconsole.log('✅ [Submenú Precios] Opción:', opcion);\n\n// Limpiar estado del submenú en BD\ntry {\n  await $supabase\n    .from('line_sessions')\n    .update({ \n      awaiting_continuation: false,\n      session_metadata: null\n    })\n    .eq('channel_id', phoneNumber)\n    .eq('awaiting_continuation', true);\n} catch (error) {\n  console.warn('⚠️ Error limpiando estado:', error.message);\n}\n\nreturn [{\n  json: {\n    opcion_precios: opcion,\n    phone_number: phoneNumber,\n    user_data: userData,\n    restaurant_id: userData.restaurant_id,\n    person_id: userData.id,\n    message: $('Extraer Datos WhatsApp').first().json.message\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -200,
-        328
-      ],
-      "id": "021a53b6-da06-44c9-b6f3-e7f6477d8006",
-      "name": "Detectar Opción Submenú Precios"
-    },
-    {
-      "parameters": {
-        "mode": "expression",
-        "output": "={{ $json.opcion_precios === 'ver_status' ? 0 : 1 }}"
-      },
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.3,
-      "position": [
-        0,
-        328
-      ],
-      "id": "59d183ca-9103-4f90-9602-924d513f2617",
-      "name": "Router Submenú Precios"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Ver status de precios - Versión simplificada\nconst phoneNumber = $input.first().json.phone_number;\n\nconsole.log('📊 [Ver Status Preços]');\n\nconst mensaje = `📊 *STATUS DOS PREÇOS*\n\nEsta funcionalidade mostrará:\n✅ Total de fornecedores cadastrados  \n✅ Total de produtos com preços\n✅ Produtos com preços desatualizados\n\n🚧 Funcionalidade em desenvolvimento\n\nPor enquanto, você pode:\n💬 Digite \"2\" para atualizar preços\n💬 Digite \"menu\" para voltar ao menu principal`;\n\nreturn [{\n  json: {\n    output: mensaje,\n    phone_number: phoneNumber\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        200,
-        228
-      ],
-      "id": "e5b84311-248b-4eb2-8e96-8d0c56fec53f",
-      "name": "Ver Status Preços"
     }
   ],
   "pinData": {},
@@ -2725,7 +2672,7 @@
         ],
         [
           {
-            "node": "Generar Submenú Precios",
+            "node": "Preparar Datos Subir Precios",
             "type": "main",
             "index": 0
           }
@@ -3297,57 +3244,6 @@
             "index": 0
           }
         ],
-        [
-          {
-            "node": "Enviar Respuesta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generar Submenú Precios": {
-      "main": [
-        [
-          {
-            "node": "Enviar Respuesta",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Detectar Opción Submenú Precios": {
-      "main": [
-        [
-          {
-            "node": "Router Submenú Precios",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Router Submenú Precios": {
-      "main": [
-        [
-          {
-            "node": "Ver Status Preços",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Preparar Datos Subir Precios",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ver Status Preços": {
-      "main": [
         [
           {
             "node": "Enviar Respuesta",
