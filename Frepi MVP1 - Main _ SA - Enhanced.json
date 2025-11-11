@@ -2061,11 +2061,23 @@
       "parameters": {
         "operation": "getAll",
         "tableId": "line_sessions",
-        "limit": 1,
+        "returnAll": true,
         "filters": {
           "conditions": [
             {
-              "condition": "and"
+              "keyName": "channel_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Extraer Datos WhatsApp').first().json.phone_number }}"
+            },
+            {
+              "keyName": "session_type",
+              "condition": "eq",
+              "keyValue": "discovery"
+            },
+            {
+              "keyName": "session_goal_achieved",
+              "condition": "is",
+              "keyValue": "null"
             }
           ]
         }
@@ -2078,7 +2090,14 @@
         -560,
         -72
       ],
-      "notes": "Busca sesión de onboarding activa (no completada) del usuario"
+      "alwaysOutputData": true,
+      "notes": "Busca sesión de onboarding activa (no completada) del usuario",
+      "credentials": {
+        "supabaseApi": {
+          "id": "YaSYB0r907WCaDZK",
+          "name": "Frepi Supabase"
+        }
+      }
     },
     {
       "parameters": {
