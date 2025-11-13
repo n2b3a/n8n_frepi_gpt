@@ -1,0 +1,1304 @@
+{
+  "name": "Frepi - Arquitectura de Agentes (Multi-Nivel)",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.webhookUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0],
+      "id": "webhook-whatsapp-entry",
+      "name": "📱 WhatsApp Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer datos básicos del mensaje de WhatsApp\nconst body = $input.item.json.body || $input.item.json;\n\nreturn {\n  phone_number: body.from || body.phone_number,\n  message: body.message || body.text || body.body,\n  timestamp: body.timestamp || new Date().toISOString(),\n  raw_data: body\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "id": "extract-whatsapp-data",
+      "name": "📋 Extraer Datos WhatsApp"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🧠 AGENTE MAESTRO - ORQUESTADOR CENTRAL\n\n🎯 ROL: Cerebro del sistema que recibe mensajes y decide qué agente debe manejar cada solicitud.\n\n📋 FUNCIONALIDADES:\n1. Analizar intención del mensaje\n2. Verificar sesión activa del usuario\n3. Detectar contexto conversacional\n4. Enrutar al agente L1 o L2 apropiado\n5. Manejar errores y fallbacks\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Clasificar intenciones generales\n  - Gestionar timeouts de sesión\n  - Coordinar flujos entre agentes\n  - Registrar métricas de enrutamiento\n\n❌ NO DEBE:\n  - Resolver lógica de negocio específica\n  - Acceder directamente a BD de productos/pedidos\n  - Ejecutar operaciones de dominio\n\n🛠️ HERRAMIENTAS DISPONIBLES:\n  - get_active_session(phone_number)\n  - classify_general_intent(message)\n  - route_to_agent(agent_name, context)\n  - log_routing_decision()\n\n📤 OUTPUT: Decisión de enrutamiento a agente específico\n\nTODO: Configurar prompts y tools específicos"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [440, 0],
+      "id": "agent-l0-maestro",
+      "name": "🧠 L0 - Agente Maestro",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-maestro",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-maestro",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2,
+          "timeout": 30000,
+          "maxRetries": 3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [640, -120],
+      "id": "openai-maestro",
+      "name": "OpenAI Maestro",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [640, 120],
+      "id": "memory-maestro",
+      "name": "Memory Maestro"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🏠 AGENTE BASE - MENÚ Y NAVEGACIÓN\n\n🎯 ROL: Presentar menú principal y ayudar en navegación general.\n\n📋 FUNCIONALIDADES:\n1. Mostrar opciones del menú principal\n2. Explicar funcionalidades disponibles\n3. Ayudar con comandos básicos\n4. Redirigir a agentes especializados\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Mostrar menú cuando se solicite\n  - Explicar brevemente cada opción\n  - Capturar selección del usuario\n  \n❌ NO DEBE:\n  - Ejecutar operaciones de negocio\n  - Acceder a bases de datos\n  - Procesar transacciones\n\n📤 MENÚ PRINCIPAL:\n1️⃣ Ver Catálogo\n2️⃣ Hacer Pedido\n3️⃣ Mis Preferencias\n4️⃣ Subir Precios (Proveedores)\n5️⃣ Ayuda\n\nTODO: Configurar opciones de menú y enrutamiento"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [440, 280],
+      "id": "agent-l0-base",
+      "name": "🏠 L0 - Agente Base",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-base",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-base",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.1,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [640, 160],
+      "id": "openai-base",
+      "name": "OpenAI Base",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 5
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [640, 400],
+      "id": "memory-base",
+      "name": "Memory Base"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🎭 AGENTE IDENTIDAD - CLASIFICADOR USUARIO/PROVEEDOR\n\n🎯 ROL: Identificar si el interlocutor es un Usuario (cliente) o Proveedor.\n\n📋 FUNCIONALIDADES:\n1. Analizar mensaje inicial\n2. Detectar intención (comprar vs vender)\n3. Verificar perfil en BD si existe\n4. Clasificar y enrutar al paquete L2 correcto\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Clasificar entre Usuario y Proveedor\n  - Consultar BD para perfil existente\n  - Detectar keywords clave\n  \n❌ NO DEBE:\n  - Ejecutar onboarding (eso es L2)\n  - Procesar pedidos o precios\n  - Modificar datos\n\n🛠️ HERRAMIENTAS:\n  - check_user_profile(phone_number)\n  - classify_user_type(message)\n  - route_to_l2_package(type)\n\n📤 OUTPUT:\n{\n  \"user_type\": \"usuario\" | \"proveedor\",\n  \"confidence\": 0.95,\n  \"route_to\": \"L2_USUARIO\" | \"L2_PROVEEDOR\"\n}\n\nTODO: Implementar clasificación y consulta BD"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [920, 140],
+      "id": "agent-l1-identidad",
+      "name": "🎭 L1 - Identidad",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-identidad",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-identidad",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.1,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1120, 20],
+      "id": "openai-identidad",
+      "name": "OpenAI Identidad",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 8
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1120, 260],
+      "id": "memory-identidad",
+      "name": "Memory Identidad"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "👋 L2 USUARIO - ONBOARDING\n\n🎯 ROL: Registrar nuevos usuarios/restaurantes.\n\n📋 FUNCIONALIDADES:\n1. Recolectar datos básicos (nombre restaurante, contacto, ciudad, tipo)\n2. Validar información\n3. Crear perfil en BD\n4. Dar bienvenida y explicar siguiente paso\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Recolectar UNA pregunta a la vez\n  - Validar respuestas\n  - Persistir en Supabase\n  - Confirmar registro exitoso\n  \n❌ NO DEBE:\n  - Configurar preferencias (eso es otro agente)\n  - Mostrar catálogo todavía\n  - Procesar pedidos\n\n🛠️ HERRAMIENTAS:\n  - save_restaurant(data)\n  - validate_city(name)\n  - check_duplicate_phone(number)\n\n📤 OUTPUT:\n{\n  \"onboarding_complete\": true,\n  \"restaurant_id\": \"uuid\",\n  \"next_agent\": \"L2_PREFERENCIAS\"\n}\n\nTODO: Configurar flujo de preguntas y validaciones"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, -200],
+      "id": "agent-l2-usuario-onboarding",
+      "name": "👋 L2 Usuario - Onboarding",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-usuario-onboarding",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-usuario-onboarding",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.3,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, -320],
+      "id": "openai-usuario-onboarding",
+      "name": "OpenAI Usuario Onboarding",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, -80],
+      "id": "memory-usuario-onboarding",
+      "name": "Memory Usuario Onboarding"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "⚙️ L2 USUARIO - PREFERENCIAS & SETUP\n\n🎯 ROL: Configurar perfil del usuario (productos frecuentes, horarios, etc).\n\n📋 FUNCIONALIDADES:\n1. Recolectar productos frecuentes\n2. Configurar horarios preferidos de entrega\n3. Definir presupuesto típico\n4. Guardar preferencias\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Preguntar productos más comprados\n  - Validar lista de productos\n  - Actualizar perfil con preferencias\n  \n❌ NO DEBE:\n  - Buscar en catálogo todavía\n  - Crear pedidos\n  - Modificar precios\n\n🛠️ HERRAMIENTAS:\n  - save_frequent_products(restaurant_id, products[])\n  - update_preferences(restaurant_id, prefs)\n\n📤 OUTPUT:\n{\n  \"preferences_set\": true,\n  \"frequent_products\": [\"arroz\", \"feijão\", \"óleo\"],\n  \"ready_to_shop\": true\n}\n\nTODO: Implementar recolección y guardado de preferencias"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 0],
+      "id": "agent-l2-usuario-preferencias",
+      "name": "⚙️ L2 Usuario - Preferencias",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-usuario-preferencias",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-usuario-preferencias",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.3,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, -120],
+      "id": "openai-usuario-preferencias",
+      "name": "OpenAI Usuario Preferencias",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 120],
+      "id": "memory-usuario-preferencias",
+      "name": "Memory Usuario Preferencias"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🔍 L2 USUARIO - CATÁLOGO & BÚSQUEDA\n\n🎯 ROL: Ayudar a buscar productos en el catálogo.\n\n📋 FUNCIONALIDADES:\n1. Búsqueda semántica de productos\n2. Mostrar resultados con precios\n3. Filtrar por categoría, marca, proveedor\n4. Sugerir alternativas\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Buscar con embeddings (match_products_v2)\n  - Mostrar top 5 resultados\n  - Explicar diferencias entre opciones\n  - Facilitar agregar al carrito\n  \n❌ NO DEBE:\n  - Confirmar pedidos (eso es Checkout)\n  - Modificar precios\n  - Gestionar inventario\n\n🛠️ HERRAMIENTAS:\n  - search_products_semantic(query)\n  - filter_by_category(category)\n  - get_product_details(product_id)\n  - add_to_cart(product_id, quantity)\n\n📤 OUTPUT:\n{\n  \"results\": [\n    {\"product\": \"Arroz Tio João 5kg\", \"price\": 25.90, \"supplier\": \"X\"}\n  ],\n  \"added_to_cart\": true\n}\n\nTODO: Configurar búsqueda vectorial y filtros"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 200],
+      "id": "agent-l2-usuario-catalogo",
+      "name": "🔍 L2 Usuario - Catálogo",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-usuario-catalogo",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-usuario-catalogo",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.4,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, 80],
+      "id": "openai-usuario-catalogo",
+      "name": "OpenAI Usuario Catálogo",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 320],
+      "id": "memory-usuario-catalogo",
+      "name": "Memory Usuario Catálogo"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🛒 L2 USUARIO - COMPRAS (CONSTRUCCIÓN PEDIDO)\n\n🎯 ROL: Gestionar construcción del pedido.\n\n📋 FUNCIONALIDADES:\n1. Agregar productos al carrito\n2. Modificar cantidades\n3. Eliminar items\n4. Mostrar resumen del pedido\n5. Calcular total\n6. Sugerir productos complementarios\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Gestionar carrito temporal\n  - Validar disponibilidad\n  - Calcular subtotales\n  - Permitir modificaciones\n  \n❌ NO DEBE:\n  - Confirmar pago (eso es Checkout)\n  - Modificar inventario todavía\n  - Enviar notificaciones a proveedores\n\n🛠️ HERRAMIENTAS:\n  - add_to_cart(product_id, quantity)\n  - remove_from_cart(item_id)\n  - update_quantity(item_id, new_qty)\n  - get_cart_summary(session_id)\n  - suggest_complementary(cart_items)\n\n📤 OUTPUT:\n{\n  \"cart\": [\n    {\"product\": \"Arroz 5kg\", \"qty\": 2, \"price\": 25.90}\n  ],\n  \"total\": 51.80,\n  \"ready_for_checkout\": true\n}\n\nTODO: Implementar gestión de carrito y cálculos"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 400],
+      "id": "agent-l2-usuario-compras",
+      "name": "🛒 L2 Usuario - Compras",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-usuario-compras",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-usuario-compras",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.3,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, 280],
+      "id": "openai-usuario-compras",
+      "name": "OpenAI Usuario Compras",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 520],
+      "id": "memory-usuario-compras",
+      "name": "Memory Usuario Compras"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "✅ L2 USUARIO - CHECKOUT & CONFIRMACIÓN\n\n🎯 ROL: Confirmar pedido y procesar pago.\n\n📋 FUNCIONALIDADES:\n1. Revisar pedido final\n2. Confirmar dirección de entrega\n3. Seleccionar método de pago\n4. Generar pedido en BD\n5. Enviar confirmación\n6. Notificar a proveedores\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Validar todos los datos\n  - Crear registro de pedido\n  - Generar comprobante\n  - Notificar stakeholders\n  - Limpiar carrito\n  \n❌ NO DEBE:\n  - Modificar productos (volver a Compras)\n  - Gestionar inventario real\n  - Procesar pagos reales (por ahora)\n\n🛠️ HERRAMIENTAS:\n  - validate_order(cart, address)\n  - create_order(data)\n  - send_confirmation(order_id, phone)\n  - notify_suppliers(order_id)\n  - clear_cart(session_id)\n\n📤 OUTPUT:\n{\n  \"order_created\": true,\n  \"order_id\": \"ORD-12345\",\n  \"total\": 150.80,\n  \"estimated_delivery\": \"2025-11-15\"\n}\n\nTODO: Implementar validación, creación de orden y notificaciones"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 600],
+      "id": "agent-l2-usuario-checkout",
+      "name": "✅ L2 Usuario - Checkout",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-usuario-checkout",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-usuario-checkout",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, 480],
+      "id": "openai-usuario-checkout",
+      "name": "OpenAI Usuario Checkout",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 720],
+      "id": "memory-usuario-checkout",
+      "name": "Memory Usuario Checkout"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🏭 L2 PROVEEDOR - ONBOARDING\n\n🎯 ROL: Registrar nuevos proveedores.\n\n📋 FUNCIONALIDADES:\n1. Recolectar datos de proveedor (nombre empresa, CNPJ, contacto)\n2. Validar documentos\n3. Crear perfil de proveedor\n4. Explicar proceso de carga de precios\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Recolectar datos uno a uno\n  - Validar CNPJ\n  - Crear registro en BD\n  - Dar acceso a subida de listas\n  \n❌ NO DEBE:\n  - Procesar listas de precios (eso es otro agente)\n  - Aprobar productos\n  - Gestionar catálogo\n\n🛠️ HERRAMIENTAS:\n  - validate_cnpj(cnpj)\n  - create_supplier(data)\n  - check_duplicate_supplier(cnpj)\n\n📤 OUTPUT:\n{\n  \"supplier_registered\": true,\n  \"supplier_id\": \"uuid\",\n  \"next_step\": \"L2_PRECIOS\"\n}\n\nTODO: Implementar validaciones y registro"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 900],
+      "id": "agent-l2-proveedor-onboarding",
+      "name": "🏭 L2 Proveedor - Onboarding",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-proveedor-onboarding",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-proveedor-onboarding",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.3,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, 780],
+      "id": "openai-proveedor-onboarding",
+      "name": "OpenAI Proveedor Onboarding",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 1020],
+      "id": "memory-proveedor-onboarding",
+      "name": "Memory Proveedor Onboarding"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "💰 L2 PROVEEDOR - PRECIOS (SUBIDA/ACTUALIZACIÓN)\n\n🎯 ROL: Ayudar a proveedores a subir listas de precios.\n\n📋 FUNCIONALIDADES:\n1. Recibir archivo/imagen de lista\n2. Parsear contenido (OCR si es imagen)\n3. Extraer productos y precios\n4. Validar formato\n5. Enviar a Normalizador\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Aceptar PDF, Excel, imágenes\n  - Extraer datos estructurados\n  - Validar campos mínimos (nombre, precio, unidad)\n  - Pasar a siguiente agente\n  \n❌ NO DEBE:\n  - Normalizar productos (eso es L2 Normalizador)\n  - Publicar directamente al catálogo\n  - Aprobar precios\n\n🛠️ HERRAMIENTAS:\n  - parse_price_list(file)\n  - extract_with_ocr(image)\n  - validate_price_format(data)\n  - send_to_normalizer(raw_data)\n\n📤 OUTPUT:\n{\n  \"parsed\": true,\n  \"products_found\": 45,\n  \"format\": \"excel\",\n  \"sent_to_normalizer\": true\n}\n\nTODO: Implementar parseo y validación de listas"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 1100],
+      "id": "agent-l2-proveedor-precios",
+      "name": "💰 L2 Proveedor - Precios",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-proveedor-precios",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-proveedor-precios",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, 980],
+      "id": "openai-proveedor-precios",
+      "name": "OpenAI Proveedor Precios",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 1220],
+      "id": "memory-proveedor-precios",
+      "name": "Memory Proveedor Precios"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "🔄 L2 PROVEEDOR - NORMALIZADOR DE LISTAS\n\n🎯 ROL: Normalizar productos a master_list.\n\n📋 FUNCIONALIDADES:\n1. Recibir lista parseada\n2. Normalizar unidades (kg, g, L, ml, etc)\n3. Hacer matching semántico con master_list\n4. Sugerir matches y pedir confirmación\n5. Crear nuevos productos si es necesario\n6. Generar SKU interno\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Convertir todas las unidades a estándar\n  - Usar embeddings para matching\n  - Pedir confirmación al proveedor si confidence < 0.85\n  - Crear versión normalizada\n  \n❌ NO DEBE:\n  - Publicar directamente (eso es Publicador)\n  - Modificar master_list sin aprobación\n  - Auto-aprobar matches ambiguos\n\n🛠️ HERRAMIENTAS:\n  - normalize_units(product)\n  - match_to_master(product_name)\n  - create_sku(category, brand)\n  - request_confirmation(matches)\n\n📤 OUTPUT:\n{\n  \"normalized\": true,\n  \"matched\": 40,\n  \"new_products\": 5,\n  \"pending_confirmation\": 3,\n  \"ready_to_publish\": false\n}\n\nTODO: Implementar normalización y matching semántico"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 1300],
+      "id": "agent-l2-proveedor-normalizador",
+      "name": "🔄 L2 Proveedor - Normalizador",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-proveedor-normalizador",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-proveedor-normalizador",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.1,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, 1180],
+      "id": "openai-proveedor-normalizador",
+      "name": "OpenAI Proveedor Normalizador",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 1420],
+      "id": "memory-proveedor-normalizador",
+      "name": "Memory Proveedor Normalizador"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "📢 L2 PROVEEDOR - PUBLICADOR DE CATÁLOGO\n\n🎯 ROL: Publicar productos normalizados al catálogo.\n\n📋 FUNCIONALIDADES:\n1. Recibir lista normalizada\n2. Generar embeddings de productos\n3. Publicar a tabla catalog_products\n4. Versionar cambios\n5. Notificar publicación exitosa\n6. Generar changelog\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Generar embeddings con text-embedding-ada-002\n  - Insertar/actualizar catalog_products\n  - Registrar version_id\n  - Crear entrada en changelog\n  - Confirmar a proveedor\n  \n❌ NO DEBE:\n  - Normalizar datos (ya viene normalizado)\n  - Modificar precios unilateralmente\n  - Publicar sin pasar por Calidad (L3)\n\n🛠️ HERRAMIENTAS:\n  - generate_embeddings(products[])\n  - publish_to_catalog(data)\n  - create_version(supplier_id)\n  - log_changes(version_id, changes)\n  - notify_publication(supplier_id)\n\n📤 OUTPUT:\n{\n  \"published\": true,\n  \"products_published\": 45,\n  \"version_id\": \"v1.2.3\",\n  \"catalog_updated\": true\n}\n\nTODO: Implementar generación de embeddings y publicación"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1400, 1500],
+      "id": "agent-l2-proveedor-publicador",
+      "name": "📢 L2 Proveedor - Publicador",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-proveedor-publicador",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-proveedor-publicador",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.1,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1600, 1380],
+      "id": "openai-proveedor-publicador",
+      "name": "OpenAI Proveedor Publicador",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('📋 Extraer Datos WhatsApp').first().json.phone_number }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 1620],
+      "id": "memory-proveedor-publicador",
+      "name": "Memory Proveedor Publicador"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "⏱️ L3 TRANSVERSAL - CONTINUACIONES\n\n🎯 ROL: Gestionar conversaciones multi-turn con timeouts.\n\n📋 FUNCIONALIDADES:\n1. Detectar conversaciones incompletas\n2. Gestionar timeouts de sesión\n3. Recordar contexto previo\n4. Re-enganchar usuarios\n5. Limpiar sesiones expiradas\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Detectar sesiones activas > 30 min sin respuesta\n  - Enviar recordatorios automáticos\n  - Recuperar contexto al retomar\n  - Preguntar si desea continuar\n  \n❌ NO DEBE:\n  - Forzar continuación\n  - Mantener sesiones > 24h\n  - Reenviar mensajes ya procesados\n\n🛠️ HERRAMIENTAS:\n  - get_active_sessions()\n  - check_timeout(session_id)\n  - send_reminder(phone, context)\n  - resume_session(session_id)\n  - expire_session(session_id)\n\n📤 OUTPUT:\n{\n  \"session_resumed\": true,\n  \"last_agent\": \"L2_COMPRAS\",\n  \"context_recovered\": true\n}\n\nTODO: Implementar detección de timeouts y recordatorios"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [2000, 400],
+      "id": "agent-l3-continuaciones",
+      "name": "⏱️ L3 - Continuaciones",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-continuaciones",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-continuaciones",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [2200, 280],
+      "id": "openai-continuaciones",
+      "name": "OpenAI Continuaciones",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "global-continuations",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [2200, 520],
+      "id": "memory-continuaciones",
+      "name": "Memory Continuaciones"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "✨ L3 TRANSVERSAL - CALIDAD DE DATOS\n\n🎯 ROL: Validar y limpiar datos antes de persistir.\n\n📋 FUNCIONALIDADES:\n1. Validar formato de datos\n2. Detectar duplicados\n3. Limpiar caracteres especiales\n4. Normalizar encoding\n5. Validar constraints de BD\n6. Aprobar o rechazar para persistencia\n\n🔧 ALCANCE:\n✅ DEBE:\n  - Validar TODOS los datos antes de INSERT/UPDATE\n  - Aplicar regex de limpieza\n  - Detectar duplicados\n  - Registrar errores de validación\n  - Bloquear datos corruptos\n  \n❌ NO DEBE:\n  - Modificar lógica de negocio\n  - Auto-corregir sin log\n  - Permitir datos inválidos\n\n🛠️ HERRAMIENTAS:\n  - validate_schema(data, table)\n  - check_duplicates(table, key)\n  - clean_special_chars(text)\n  - normalize_encoding(text)\n  - log_validation_error(error)\n\n📤 OUTPUT:\n{\n  \"validation_passed\": true,\n  \"cleaned_fields\": [\"product_name\", \"supplier_name\"],\n  \"duplicates_found\": 0,\n  \"ready_to_persist\": true\n}\n\nTODO: Implementar validaciones y limpieza de datos"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [2000, 800],
+      "id": "agent-l3-calidad",
+      "name": "✨ L3 - Calidad",
+      "connections": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "openai-calidad",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ],
+        "ai_memory": [
+          [
+            {
+              "node": "memory-calidad",
+              "type": "ai_memory",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.1,
+          "timeout": 30000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [2200, 680],
+      "id": "openai-calidad",
+      "name": "OpenAI Calidad",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "global-quality",
+        "contextWindowLength": 5
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [2200, 920],
+      "id": "memory-calidad",
+      "name": "Memory Calidad"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ROUTER: Enrutar a agentes según resultado del Maestro\nconst agentDecision = $input.item.json.output;\nconst routeMapping = {\n  'L1_IDENTIDAD': 'agent-l1-identidad',\n  'L2_USUARIO_ONBOARDING': 'agent-l2-usuario-onboarding',\n  'L2_USUARIO_PREFERENCIAS': 'agent-l2-usuario-preferencias',\n  'L2_USUARIO_CATALOGO': 'agent-l2-usuario-catalogo',\n  'L2_USUARIO_COMPRAS': 'agent-l2-usuario-compras',\n  'L2_USUARIO_CHECKOUT': 'agent-l2-usuario-checkout',\n  'L2_PROVEEDOR_ONBOARDING': 'agent-l2-proveedor-onboarding',\n  'L2_PROVEEDOR_PRECIOS': 'agent-l2-proveedor-precios',\n  'L2_PROVEEDOR_NORMALIZADOR': 'agent-l2-proveedor-normalizador',\n  'L2_PROVEEDOR_PUBLICADOR': 'agent-l2-proveedor-publicador',\n  'L3_CONTINUACIONES': 'agent-l3-continuaciones',\n  'L0_BASE': 'agent-l0-base'\n};\n\nreturn {\n  next_agent: routeMapping[agentDecision] || 'agent-l0-base',\n  context: $input.item.json\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 0],
+      "id": "router-maestro",
+      "name": "🔀 Router"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enviar respuesta final a WhatsApp\nconst response = $input.item.json.output || $input.item.json.response;\nconst phoneNumber = $('📋 Extraer Datos WhatsApp').first().json.phone_number;\n\nreturn {\n  to: phoneNumber,\n  message: response,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2400, 0],
+      "id": "format-response",
+      "name": "📤 Formatear Respuesta"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.whatsapp_api_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2620, 0],
+      "id": "send-whatsapp",
+      "name": "📨 Enviar WhatsApp"
+    }
+  ],
+  "connections": {
+    "📱 WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "📋 Extraer Datos WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Extraer Datos WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "🧠 L0 - Agente Maestro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 L0 - Agente Maestro": {
+      "main": [
+        [
+          {
+            "node": "🔀 Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Router": {
+      "main": [
+        [
+          {
+            "node": "🏠 L0 - Agente Base",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🎭 L1 - Identidad",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "👋 L2 Usuario - Onboarding",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "⚙️ L2 Usuario - Preferencias",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔍 L2 Usuario - Catálogo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🛒 L2 Usuario - Compras",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "✅ L2 Usuario - Checkout",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🏭 L2 Proveedor - Onboarding",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "💰 L2 Proveedor - Precios",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔄 L2 Proveedor - Normalizador",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📢 L2 Proveedor - Publicador",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "⏱️ L3 - Continuaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏠 L0 - Agente Base": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎭 L1 - Identidad": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👋 L2 Usuario - Onboarding": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ L2 Usuario - Preferencias": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 L2 Usuario - Catálogo": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🛒 L2 Usuario - Compras": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ L2 Usuario - Checkout": {
+      "main": [
+        [
+          {
+            "node": "✨ L3 - Calidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏭 L2 Proveedor - Onboarding": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💰 L2 Proveedor - Precios": {
+      "main": [
+        [
+          {
+            "node": "🔄 L2 Proveedor - Normalizador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 L2 Proveedor - Normalizador": {
+      "main": [
+        [
+          {
+            "node": "📢 L2 Proveedor - Publicador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📢 L2 Proveedor - Publicador": {
+      "main": [
+        [
+          {
+            "node": "✨ L3 - Calidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏱️ L3 - Continuaciones": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✨ L3 - Calidad": {
+      "main": [
+        [
+          {
+            "node": "📤 Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Formatear Respuesta": {
+      "main": [
+        [
+          {
+            "node": "📨 Enviar WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-11-13T00:00:00.000Z",
+  "versionId": "1.0.0"
+}
