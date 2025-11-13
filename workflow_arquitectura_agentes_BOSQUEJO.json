@@ -1,0 +1,501 @@
+{
+  "name": "Frepi - Arquitectura de Agentes (BOSQUEJO)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "whatsapp-trigger-node",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [300, 400],
+      "webhookId": "bosquejo-arquitectura"
+    },
+    {
+      "parameters": {
+        "content": "# 📱 PUNTO DE ENTRADA\n\nTodo mensaje de WhatsApp llega aquí.\n\nExtrae:\n- phone_number\n- message\n- timestamp\n- metadata\n\nEnvía al Agente Maestro para orquestación.",
+        "height": 250,
+        "width": 300
+      },
+      "id": "note-entrada",
+      "name": "Nota: Entrada del Sistema",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nNIVEL L0 - AGENTE MAESTRO (ORQUESTADOR)\n===========================================\n\n🎯 ROL: Cerebro central del sistema\n\n📋 FUNCIONALIDADES:\n  1. Recibe mensaje raw de WhatsApp\n  2. Extrae contexto básico (phone, message, timestamp)\n  3. Busca sesión activa en BD\n  4. Detecta intención general:\n     - onboarding_usuario\n     - onboarding_proveedor\n     - comprar\n     - actualizar_precios\n     - configurar_preferencias\n  5. Enruta al agente L1 o L2 correspondiente\n  6. Gestiona timeouts y fallbacks\n  7. Consolida respuestas de sub-agentes\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Orquestar flujos\n    - Detectar intenciones\n    - Gestionar reintentos\n    - Controlar prioridades\n    - Consolidar outputs\n  \n  ❌ NO DEBE:\n    - Resolver lógica de negocio\n    - Acceder directamente a BD (excepto sesiones)\n    - Ejecutar tareas específicas de dominio\n    - Modificar datos de usuario/proveedor\n\n🔗 CONEXIONES:\n  Input: WhatsApp Trigger\n  Output: Agente de Identidad (L1) o directamente a L2 si usuario conocido\n\n🛠️ TOOLS:\n  - get_active_session(phone_number)\n  - classify_intent(message)\n  - route_to_agent(intent, context)\n  - handle_timeout(session_id)\n  - consolidate_response(sub_agent_outputs)\n\n📊 OUTPUT:\n  {\n    target_agent: \"agente_compras\",\n    context: {...},\n    confidence: 0.95,\n    action: \"iniciar\" | \"continuar\"\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar lógica de orquestación\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L0_orquestador', ...input}}];"
+      },
+      "id": "l0-agente-maestro",
+      "name": "L0: Agente Maestro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 400],
+      "notes": "Orquestador central - Detecta intención y enruta"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nNIVEL L0 - AGENTE BASE (MENÚ & NAVEGACIÓN)\n===========================================\n\n🎯 ROL: Interfaz de menú y normalización de comandos\n\n📋 FUNCIONALIDADES:\n  1. Presenta menú principal al usuario\n  2. Lee comandos rápidos:\n     - \"1\" o \"comprar\" → fazer_pedido\n     - \"2\" o \"preços\" → atualizar_precos\n     - \"3\" o \"fornecedor\" → registrar_fornecedor\n     - \"4\" o \"configurar\" → setup_preferencias\n     - \"menu\" o \"ajuda\" → mostrar_menu\n  3. Normaliza entrada del usuario\n  4. Prepara payload estándar para orquestador\n  5. Maneja comandos globales (\"sair\", \"cancelar\")\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Mostrar menú con opciones claras\n    - Interpretar comandos (números o palabras)\n    - Normalizar intenciones\n    - Validar formato de entrada\n    - Retornar intención limpia\n  \n  ❌ NO DEBE:\n    - Crear sesiones (eso es del Orquestador)\n    - Llamar a BD directamente\n    - Ejecutar lógica de negocio\n    - Decidir flujos complejos\n    - Modificar estado del usuario\n\n🔗 CONEXIONES:\n  Input: Agente Maestro (cuando usuario necesita menú)\n  Output: Agente Maestro (con intención normalizada)\n\n🛠️ TOOLS:\n  - show_menu()\n  - normalize_command(input)\n  - validate_option(option)\n\n📊 OUTPUT:\n  {\n    comando_normalizado: \"fazer_pedido\",\n    parametros: {...},\n    origen: \"menu_principal\"\n  }\n\n💡 EJEMPLO:\n  Input: \"1\" o \"quero comprar\"\n  Output: {comando: \"fazer_pedido\", confianza: 1.0}\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar menú y normalización\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L0_menu', ...input}}];"
+      },
+      "id": "l0-agente-base",
+      "name": "L0: Agente Base (Menú)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "notes": "Menú principal - Normaliza comandos"
+    },
+    {
+      "parameters": {
+        "content": "═══════════════════════════════════\n   NIVEL L0 - NÚCLEO\n═══════════════════════════════════\n\n🧠 Cerebro del sistema\n\n▸ Agente Maestro: Orquesta TODO\n▸ Agente Base: Interfaz de menú\n\nResponsabilidades:\n✓ Detectar intenciones\n✓ Enrutar a agentes especializados\n✓ Consolidar respuestas\n✓ Gestionar timeouts\n✓ NO ejecutar lógica de negocio",
+        "height": 380,
+        "width": 550
+      },
+      "id": "separador-l0",
+      "name": "═══ NIVEL L0 ═══",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [540, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nNIVEL L1 - AGENTE DE IDENTIDAD\n===========================================\n\n🎯 ROL: Clasificador temprano (Usuario vs Proveedor)\n\n📋 FUNCIONALIDADES:\n  1. Determina ROL del contacto:\n     - user (restaurante que compra)\n     - supplier (proveedor que vende)\n  2. Busca en BD si ya existe registro\n  3. Si NO existe, analiza mensaje con heurísticas:\n     \n     PROVEEDOR si dice:\n     ✓ \"lista de preços\"\n     ✓ \"tabela de preços\"\n     ✓ \"sou fornecedor/distribuidor\"\n     ✓ Envía archivo Excel/CSV\n     ✓ Menciona \"atacado\"\n     \n     USUARIO si dice:\n     ✓ \"quero comprar\"\n     ✓ \"preciso de produtos\"\n     ✓ \"sou restaurante\"\n     ✓ \"tenho um restaurante\"\n  \n  4. Calcula confianza (0-1)\n  5. Si confianza < 0.7 → pregunta directamente:\n     \"Olá! Para te ajudar melhor, você é:\n      1️⃣ Restaurante que quer comprar\n      2️⃣ Fornecedor que quer vender\"\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Clasificar rol con alta confianza\n    - Buscar historial en BD\n    - Aplicar heurísticas de detección\n    - Pedir confirmación si ambiguo\n    - Registrar razón de clasificación\n  \n  ❌ NO DEBE:\n    - Hacer onboarding (eso es L2)\n    - Ejecutar compras o precios\n    - Modificar datos del contacto\n    - Decidir flujos posteriores\n\n🔗 CONEXIONES:\n  Input: Agente Maestro (para usuarios nuevos)\n  Output: Bifurcación L2:\n    - Si user → Paquete Usuario\n    - Si supplier → Paquete Proveedor\n\n🛠️ TOOLS:\n  - search_contact(phone_number)\n  - analyze_intent_heuristics(message)\n  - calculate_confidence(features)\n  - ask_role_confirmation()\n\n📊 OUTPUT:\n  {\n    role: \"user\" | \"supplier\",\n    confidence: 0.85,\n    reason: \"Detectado 'quero comprar' en mensaje\",\n    is_new: true,\n    next_agent: \"onboarding_usuario\"\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar clasificación user/supplier\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L1_identidad', ...input}}];"
+      },
+      "id": "l1-agente-identidad",
+      "name": "L1: Agente de Identidad",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400],
+      "notes": "Clasificador: Usuario vs Proveedor"
+    },
+    {
+      "parameters": {
+        "content": "═══════════════════════════════════\n   NIVEL L1 - CLASIFICACIÓN\n═══════════════════════════════════\n\n🔍 Identificación de rol\n\n▸ Agente de Identidad\n\nResponsabilidades:\n✓ ¿Usuario o Proveedor?\n✓ Calcular confianza\n✓ Enrutar a paquete L2 correcto\n✓ NO hacer onboarding aquí",
+        "height": 250,
+        "width": 400
+      },
+      "id": "separador-l1",
+      "name": "═══ NIVEL L1 ═══",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1100, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.role }}",
+              "operation": "equals",
+              "value2": "user"
+            }
+          ]
+        }
+      },
+      "id": "switch-role",
+      "name": "Switch: Role",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1500, 400],
+      "notes": "Bifurcación: Usuario o Proveedor"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 USUARIO - AGENTE ONBOARDING USUARIO\n===========================================\n\n🎯 ROL: Alta y validación de datos del restaurante\n\n📋 FUNCIONALIDADES:\n  1. Captura 4 datos OBLIGATORIOS:\n     a) Nombre del restaurante\n     b) Ciudad\n     c) Nombre del contacto\n     d) Tipo de establecimiento\n  2. Validación secuencial (1 pregunta a la vez)\n  3. Confirmación antes de guardar\n  4. Persistir en BD:\n     - Tabla: restaurants\n     - Tabla: restaurant_people\n  5. Marcar sesión como \"onboarding_completo\"\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Recoger 4 datos en orden\n    - Validar completitud\n    - Confirmar con usuario\n    - Guardar en BD (2 tablas)\n    - Retornar user_id + restaurant_id\n  \n  ❌ NO DEBE:\n    - Mostrar menú (eso es Agente Base)\n    - Sugerir próxima acción (eso es Orquestador)\n    - Hacer compras\n    - Configurar preferencias\n\n🔗 CONEXIONES:\n  Input: Switch (si role=user)\n  Output: Agente Maestro (con usuario creado)\n\n🛠️ TOOLS:\n  - validate_restaurant_name(name)\n  - check_duplicate(name, city)\n  - save_restaurant(data)\n  - save_contact(data)\n\n📊 OUTPUT:\n  {\n    status: \"onboarding_completo\",\n    user_id: 123,\n    restaurant_id: 456,\n    data: {...}\n  }\n\n💬 EJEMPLO DE FLUJO:\n  Bot: \"Qual é o nome do seu restaurante?\"\n  User: \"Cantina da Maria\"\n  Bot: \"✅ Cantina da Maria. Em qual cidade?\"\n  User: \"São Paulo\"\n  Bot: \"✅ São Paulo. E seu nome?\"\n  ...\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar onboarding de usuario\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_user_onboarding', ...input}}];"
+      },
+      "id": "l2-user-onboarding",
+      "name": "L2U: Onboarding Usuario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 200],
+      "notes": "Alta de restaurante (4 datos)"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 USUARIO - AGENTE PREFERENCIAS & SETUP\n===========================================\n\n🎯 ROL: Configuración fina del usuario\n\n📋 FUNCIONALIDADES:\n  1. Captura preferencias generales:\n     - Prioridad: precio vs calidad vs equilibrio\n     - Marcas preferidas (opcional)\n     - Importancia de calidad (1-5)\n  2. Captura preferencias por categoría:\n     - Vegetales: frescura, origen\n     - Carnes: corte, certificación\n     - Lácteos: marca, tipo\n  3. Guarda en BD:\n     - Campo: restaurants.category_preferences\n     - Campo: restaurants.price_sensitivity\n  4. NO negocia ni calcula precios\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Recoger preferencias claras\n    - Validar consistencia\n    - Persistir en BD\n    - Permitir actualización posterior\n  \n  ❌ NO DEBE:\n    - Hacer compras\n    - Sugerir productos\n    - Calcular precios\n    - Contactar proveedores\n\n🔗 CONEXIONES:\n  Input: Agente Maestro (cuando usuario elige \"configurar\")\n  Output: Agente Maestro (preferencias guardadas)\n\n🛠️ TOOLS:\n  - get_current_preferences(user_id)\n  - validate_preference_format(prefs)\n  - save_preferences(user_id, prefs)\n\n📊 OUTPUT:\n  {\n    status: \"preferencias_guardadas\",\n    preferences: {...},\n    completeness: 0.85\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar configuración de preferencias\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_user_preferences', ...input}}];"
+      },
+      "id": "l2-user-preferences",
+      "name": "L2U: Preferencias & Setup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 200],
+      "notes": "Configuración de preferencias"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 USUARIO - AGENTE CATÁLOGO & BÚSQUEDA\n===========================================\n\n🎯 ROL: Encontrar y sugerir productos (INTELIGENCIA)\n\n📋 FUNCIONALIDADES:\n  1. Búsqueda semántica con embeddings:\n     - Input: \"tomate\" → vector(1536)\n     - RPC: match_products_v2(embedding, threshold)\n     - Output: Lista de productos similares + score\n  \n  2. Desambiguación:\n     User: \"tomate\"\n     Bot: \"¿Tomate fresco o pasta de tomate?\"\n  \n  3. Sugerencias de equivalentes:\n     \"Arroz Tio João no disponible, pero hay:\n      • Arroz Camil (similar)\n      • Arroz Tio João (5kg en vez de 1kg)\"\n  \n  4. Aplicar preferencias del usuario:\n     - Filtrar marcas preferidas\n     - Priorizar según price_sensitivity\n  \n  5. Memoria de búsquedas previas:\n     - Si usuario siempre compra \"Piracanjuba\"\n     - Sugerir primero esa marca\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Buscar en catálogo (master_list)\n    - Desambiguar cuando necesario\n    - Sugerir alternativas\n    - Aplicar preferencias\n    - Retornar candidatos con metadata\n  \n  ❌ NO DEBE:\n    - Confirmar pedidos\n    - Calcular totales\n    - Contactar proveedores\n    - Guardar en carrito\n\n🔗 CONEXIONES:\n  Input: Agente de Compras (cuando necesita buscar producto)\n  Output: Agente de Compras (con productos encontrados)\n\n🛠️ TOOLS:\n  - search_by_embedding(text)\n  - search_by_name(name)\n  - get_alternatives(product_id)\n  - check_availability(product_id)\n  - apply_user_preferences(products, user_prefs)\n\n📊 OUTPUT:\n  {\n    productos: [\n      {\n        id: 123,\n        nombre: \"Tomate Italiano\",\n        marca: \"Hortifruti XYZ\",\n        similarity: 0.92,\n        disponible: true,\n        precio_estimado: 4.50\n      }\n    ],\n    necesita_desambiguacion: false\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar búsqueda inteligente\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_user_catalogo', ...input}}];"
+      },
+      "id": "l2-user-catalogo",
+      "name": "L2U: Catálogo & Búsqueda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2400, 200],
+      "notes": "Búsqueda inteligente de productos"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 USUARIO - AGENTE DE COMPRAS\n===========================================\n\n🎯 ROL: Armar el carrito/pedido\n\n📋 FUNCIONALIDADES:\n  1. Recibir intención de compra del usuario:\n     \"Quero comprar tomate e arroz\"\n  \n  2. Por cada producto:\n     a) Usar Agente de Catálogo para buscar\n     b) Solicitar cantidad: \"Quanto de tomate?\"\n     c) Validar unidad: \"kg? unidades?\"\n     d) Agregar al carrito temporal\n  \n  3. Aplicar reglas simples:\n     - Mínimo de compra por proveedor\n     - Unidades coherentes\n     - Validación de cantidades\n  \n  4. Permitir modificaciones:\n     \"Quer adicionar mais produtos?\"\n     \"Quer remover algum?\"\n  \n  5. Cuando lista completa:\n     - Retornar pedido listo para confirmar\n     - NO confirma automáticamente\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Tomar intención de compra\n    - Usar resultados del Agente Catálogo\n    - Solicitar cantidades y unidades\n    - Validar formato\n    - Construir lista estructurada\n    - Retornar pedido SIN confirmar\n  \n  ❌ NO DEBE:\n    - Buscar productos (usa Agente Catálogo)\n    - Confirmar orden\n    - Calcular precio final\n    - Contactar proveedores\n    - Generar comprobante\n\n🔗 CONEXIONES:\n  Input: Agente Maestro (cuando usuario dice \"comprar\")\n  Output: Agente de Checkout (con pedido listo)\n\n🛠️ TOOLS:\n  - add_to_cart(product, quantity, unit)\n  - remove_from_cart(product_id)\n  - validate_quantity(qty, unit)\n  - apply_business_rules(cart)\n\n📊 OUTPUT:\n  {\n    status: \"pedido_listo_para_confirmar\",\n    items: [\n      {producto: \"Tomate\", qty: 5, unidad: \"kg\"},\n      {producto: \"Arroz\", qty: 10, unidad: \"kg\"}\n    ],\n    validation: {ok: true}\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar construcción de pedido\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_user_compras', ...input}}];"
+      },
+      "id": "l2-user-compras",
+      "name": "L2U: Compras (Pedido)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 200],
+      "notes": "Construcción del pedido"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 USUARIO - AGENTE CHECKOUT & CONFIRMACIÓN\n===========================================\n\n🎯 ROL: Confirmar y enviar la orden\n\n📋 FUNCIONALIDADES:\n  1. Recibir pedido del Agente de Compras\n  \n  2. Buscar mejores precios:\n     - Por cada producto, consultar pricing_history\n     - Aplicar preferencias del usuario\n     - Calcular total por proveedor\n  \n  3. Generar resumen final:\n     ━━━━━━━━━━━━━━━━━━\n     📦 RESUMEN DO PEDIDO\n     \n     Tomate: 5kg\n       • Fornecedor A: R$ 4.50/kg = R$ 22.50\n       • Fornecedor B: R$ 4.80/kg = R$ 24.00 ⭐ Sua preferência\n     \n     Arroz: 10kg\n       • Fornecedor C: R$ 5.20/kg = R$ 52.00\n     \n     TOTAL ESTIMADO: R$ 76.50\n     Fornecedores: A, B, C\n     \n     Confirma o pedido? ✅\n     ━━━━━━━━━━━━━━━━━━\n  \n  4. Esperar confirmación explícita del usuario\n  \n  5. Si confirma:\n     - Crear orden en BD (tabla: orders)\n     - Generar order_id único\n     - Registrar timestamp\n     - Enviar notificaciones\n     - Retornar comprobante\n  \n  6. Si cancela:\n     - Mantener carrito para editar\n     - Preguntar si quiere modificar\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Buscar mejores precios por proveedor\n    - Generar resumen claro\n    - Esperar confirmación explícita\n    - Crear orden en BD\n    - Retornar comprobante\n  \n  ❌ NO DEBE:\n    - Confirmar automáticamente\n    - Enviar pedido a proveedores (eso es backend)\n    - Procesar pagos\n    - Hacer seguimiento de entrega\n\n🔗 CONEXIONES:\n  Input: Agente de Compras (pedido listo)\n  Output: Usuario (comprobante) + Backend (orden creada)\n\n🛠️ TOOLS:\n  - get_best_prices(products)\n  - calculate_total(items, prices)\n  - create_order(order_data)\n  - generate_order_id()\n  - send_confirmation(order_id, user_id)\n\n📊 OUTPUT:\n  {\n    status: \"orden_confirmada\",\n    order_id: \"ORD-2025-001234\",\n    total: 76.50,\n    proveedores: [\"A\", \"B\", \"C\"],\n    timestamp: \"2025-01-12T10:30:00Z\"\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar checkout y confirmación\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_user_checkout', ...input}}];"
+      },
+      "id": "l2-user-checkout",
+      "name": "L2U: Checkout & Confirmación",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3000, 200],
+      "notes": "Confirmación final de orden"
+    },
+    {
+      "parameters": {
+        "content": "════════════════════════════════════════════════════════════════════════════\n                    NIVEL L2 - PAQUETE USUARIO\n════════════════════════════════════════════════════════════════════════════\n\n👤 Agentes para RESTAURANTES que COMPRAN\n\nFLUJO TÍPICO:\n  1. Onboarding → Alta del restaurante (4 datos)\n  2. Preferencias → Configuración inicial (opcional)\n  3. Catálogo → Búsqueda inteligente de productos\n  4. Compras → Construcción del carrito\n  5. Checkout → Confirmación y creación de orden\n\nCARACTERÍSTICAS:\n  ✓ Cada agente tiene responsabilidad clara\n  ✓ NO se solapan funcionalidades\n  ✓ Comunicación via contexto mínimo\n  ✓ Catálogo NO confirma, Compras NO busca, Checkout NO modifica carrito",
+        "height": 350,
+        "width": 1400
+      },
+      "id": "separador-l2-user",
+      "name": "═══ NIVEL L2 - USUARIO ═══",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1700, 40]
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 PROVEEDOR - AGENTE ONBOARDING PROVEEDOR\n===========================================\n\n🎯 ROL: Alta y validación de datos del proveedor\n\n📋 FUNCIONALIDADES:\n  1. Captura datos OBLIGATORIOS:\n     a) Razón social / Nombre comercial\n     b) Teléfono / WhatsApp\n     c) Días de entrega (ej: Lun, Mié, Vie)\n     d) Lista inicial de productos que ofrece\n  \n  2. Captura datos OPCIONALES:\n     - Dirección\n     - Email\n     - Horarios de atención\n     - Condiciones de pago\n  \n  3. Validación:\n     - Teléfono válido\n     - No duplicado (buscar por nombre)\n     - Al menos 1 producto\n  \n  4. Persistir en BD:\n     - Tabla: suppliers\n     - Crear registro en supplier_mapped_products (básico)\n  \n  5. Marcar sesión como \"onboarding_proveedor_completo\"\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Recoger datos del proveedor\n    - Validar existencia previa\n    - Guardar en BD\n    - Lista inicial de productos (nombres)\n    - Confirmar registro exitoso\n  \n  ❌ NO DEBE:\n    - Normalizar lista de productos (eso es Normalizador)\n    - Cargar precios (eso es Agente de Precios)\n    - Evaluar calidad de datos\n    - Publicar en catálogo\n\n🔗 CONEXIONES:\n  Input: Switch (si role=supplier)\n  Output: Agente Maestro (proveedor creado)\n\n🛠️ TOOLS:\n  - validate_phone(phone)\n  - check_duplicate_supplier(name)\n  - save_supplier(data)\n  - parse_initial_products(text)\n\n📊 OUTPUT:\n  {\n    status: \"proveedor_registrado\",\n    supplier_id: 789,\n    productos_iniciales: [\"Tomate\", \"Cebola\", \"Alface\"]\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar onboarding de proveedor\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_supplier_onboarding', ...input}}];"
+      },
+      "id": "l2-supplier-onboarding",
+      "name": "L2S: Onboarding Proveedor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 600],
+      "notes": "Alta de proveedor"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 PROVEEDOR - AGENTE DE PRECIOS\n===========================================\n\n🎯 ROL: Gestionar listas de precios (subida/actualización)\n\n📋 FUNCIONALIDADES:\n  1. Recibir lista de precios:\n     Formatos aceptados:\n     - Texto: \"Tomate 4.50/kg\\nCebola 3.20/kg\"\n     - Excel/CSV (futuro)\n     - Foto de tabla (OCR, futuro)\n  \n  2. Parsear datos:\n     Extraer por cada producto:\n     - Nombre del producto\n     - Precio\n     - Unidad (kg, L, unidad)\n     - Proveedor (del contexto)\n  \n  3. Verificar completitud:\n     ✓ Todos tienen precio?\n     ✓ Todos tienen unidad?\n     ✓ Precios son números válidos?\n  \n  4. Detectar cambios vs lista vigente:\n     - Productos nuevos\n     - Productos eliminados\n     - Cambios de precio:\n       • Aumentos >10% → flag\n       • Disminuciones >10% → flag\n  \n  5. Generar reporte de cambios:\n     ━━━━━━━━━━━━━━━━━━\n     📊 ANÁLISE DA LISTA\n     \n     ✅ 45 produtos processados\n     🆕 5 produtos novos\n     📈 3 aumentos de preço\n       • Tomate: R$4.00 → R$4.80 (+20%)\n     ⚠️ 1 preço suspeito\n       • Arroz: R$0.50/kg (muito baixo)\n     \n     Status: PENDENTE REVISÃO\n     ━━━━━━━━━━━━━━━━━━\n  \n  6. Guardar como BORRADOR:\n     - Estado: \"pendiente_qa\"\n     - NO publicar automáticamente\n     - Dejar listo para Agente Publicador\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Recibir y parsear lista\n    - Verificar campos clave\n    - Detectar cambios vs vigente\n    - Generar reporte detallado\n    - Guardar como borrador\n  \n  ❌ NO DEBE:\n    - Publicar automáticamente\n    - Normalizar unidades (eso es Normalizador)\n    - Mapear SKUs\n    - Contactar al catálogo público\n\n🔗 CONEXIONES:\n  Input: Agente Maestro (cuando proveedor envía lista)\n  Output: Agente Normalizador (para limpieza)\n\n🛠️ TOOLS:\n  - parse_price_list(text)\n  - validate_completeness(items)\n  - get_current_prices(supplier_id)\n  - detect_changes(new_list, current_list)\n  - save_draft(supplier_id, items, status='pendiente_qa')\n\n📊 OUTPUT:\n  {\n    status: \"lista_recibida\",\n    items_procesados: 45,\n    nuevos: 5,\n    cambios: {aumentos: 3, diminuiciones: 1},\n    necesita_revision: true,\n    draft_id: \"DRAFT-2025-001\"\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar gestión de precios\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_supplier_precios', ...input}}];"
+      },
+      "id": "l2-supplier-precios",
+      "name": "L2S: Precios (Subida)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2100, 600],
+      "notes": "Gestión de listas de precios"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 PROVEEDOR - AGENTE NORMALIZADOR\n===========================================\n\n🎯 ROL: Calidad y consistencia de datos\n\n📋 FUNCIONALIDADES:\n  1. Recibir lista del Agente de Precios (borrador)\n  \n  2. Normalizar unidades:\n     - g → kg (factor: 0.001)\n     - ml → L (factor: 0.001)\n     - \"un\" / \"und\" / \"pç\" → unidade\n     - docena → unidade (factor: 12)\n     \n     Ejemplo:\n     ANTES: \"Arroz 500g\" a \"R$2.50\"\n     DESPUÉS: \"Arroz 1kg\" a \"R$5.00\"\n  \n  3. Mapear a master_list (SKUs):\n     - Buscar producto en catálogo maestro\n     - Si no existe → crear (con embedding)\n     - Si existe → asociar supplier_mapped_product\n  \n  4. Limpiar duplicados:\n     - \"Tomate Italiano\" vs \"Tomate italiano\"\n     - Detectar variaciones de nombre\n     - Consolidar en 1 solo registro\n  \n  5. Validar impuestos:\n     - ¿Precio incluye IVA?\n     - Si no está claro → flag para revisión\n  \n  6. Enriquecer con equivalencias:\n     - Mapear \"Arroz Tio João\" a categoría \"Cereales\"\n     - Agregar alternative_names\n     - Vincular productos similares\n  \n  7. Generar reporte de QA:\n     ━━━━━━━━━━━━━━━━━━\n     🔧 NORMALIZAÇÃO\n     \n     ✅ 45 produtos normalizados\n     🔄 15 unidades convertidas\n     🔗 42 mapeados a catálogo\n     ⚠️ 3 sin SKU (nuevos)\n     ✂️ 2 duplicados removidos\n     \n     Status: LISTO PARA PUBLICAR\n     ━━━━━━━━━━━━━━━━━━\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Normalizar unidades a base (kg, L, unidade)\n    - Mapear a master_list\n    - Detectar y limpiar duplicados\n    - Validar impuestos\n    - Enriquecer metadata\n    - Retornar lista limpia\n  \n  ❌ NO DEBE:\n    - Modificar precios\n    - Publicar en catálogo\n    - Contactar proveedor\n    - Tomar decisiones de negocio\n\n🔗 CONEXIONES:\n  Input: Agente de Precios (borrador)\n  Output: Agente Publicador (lista limpia)\n\n🛠️ TOOLS:\n  - normalize_unit(value, from_unit, to_unit)\n  - map_to_master_list(product_name)\n  - detect_duplicates(items)\n  - enrich_metadata(product)\n  - generate_embedding(text)\n\n📊 OUTPUT:\n  {\n    status: \"normalizado\",\n    items_limpios: 43,\n    convertidos: 15,\n    nuevos_skus: 3,\n    duplicados_removidos: 2,\n    listo_para_publicar: true\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar normalización\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_supplier_normalizador', ...input}}];"
+      },
+      "id": "l2-supplier-normalizador",
+      "name": "L2S: Normalizador",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2400, 600],
+      "notes": "Normalización y limpieza de datos"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL2 PROVEEDOR - AGENTE PUBLICADOR\n===========================================\n\n🎯 ROL: Publicar y versionar en catálogo\n\n📋 FUNCIONALIDADES:\n  1. Recibir lista normalizada del Agente Normalizador\n  \n  2. Verificar que pasó QA:\n     ✓ Status = \"listo_para_publicar\"\n     ✓ Todos los items tienen SKU\n     ✓ No hay errores críticos\n  \n  3. Crear nueva versión en catálogo:\n     - Versión anterior: v2.2\n     - Versión nueva: v2.3\n     - Timestamp: 2025-01-12 10:30:00\n  \n  4. Registrar changelog detallado:\n     ━━━━━━━━━━━━━━━━━━\n     📦 CHANGELOG v2.3\n     Fornecedor: Distribuidora ABC\n     Data: 2025-01-12 10:30\n     Aprovado por: System\n     \n     🆕 Produtos adicionados (5):\n       • Tomate Cherry\n       • Alface Crespa\n       ...\n     \n     📈 Mudanças de preço (3):\n       • Tomate: R$4.00 → R$4.80 (+20%)\n       • Cebola: R$3.50 → R$3.20 (-9%)\n     \n     ❌ Produtos removidos (1):\n       • Batata Doce (descontinuado)\n     ━━━━━━━━━━━━━━━━━━\n  \n  5. Activar nueva versión:\n     - Marcar v2.3 como \"activa\"\n     - Archivar v2.2 (mantener en histórico)\n     - Actualizar supplier_mapped_products\n     - Actualizar pricing_history\n  \n  6. Notificar stakeholders:\n     - Proveedor: \"Lista publicada v2.3\"\n     - Admin: Email con changelog\n     - Usuarios afectados: \"Nuevos precios disponibles\"\n  \n  7. Archivar versión anterior:\n     - NO eliminar (mantener auditoría)\n     - Marcar como \"archived\"\n     - Disponible para rollback si necesario\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Verificar QA completo\n    - Versionar correctamente\n    - Registrar changelog detallado\n    - Activar nueva versión\n    - Notificar partes interesadas\n    - Archivar versión anterior\n  \n  ❌ NO DEBE:\n    - Modificar precios\n    - Alterar lógica de normalización\n    - Tomar decisiones de negocio\n    - Publicar sin QA\n\n🔗 CONEXIONES:\n  Input: Agente Normalizador (lista aprobada)\n  Output: Catálogo público + Notificaciones\n\n🛠️ TOOLS:\n  - create_version(supplier_id, items)\n  - generate_changelog(old_version, new_version)\n  - activate_version(version_id)\n  - archive_previous(version_id)\n  - notify_stakeholders(changelog)\n\n📊 OUTPUT:\n  {\n    status: \"publicado\",\n    version: \"v2.3\",\n    publicado_en: \"2025-01-12T10:30:00Z\",\n    items_activos: 43,\n    changelog_url: \"...\"\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar publicación y versionado\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L2_supplier_publicador', ...input}}];"
+      },
+      "id": "l2-supplier-publicador",
+      "name": "L2S: Publicador",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 600],
+      "notes": "Publicación en catálogo"
+    },
+    {
+      "parameters": {
+        "content": "════════════════════════════════════════════════════════════════════════════\n                    NIVEL L2 - PAQUETE PROVEEDOR\n════════════════════════════════════════════════════════════════════════════\n\n🏪 Agentes para PROVEEDORES que VENDEN\n\nFLUJO TÍPICO:\n  1. Onboarding → Alta del proveedor\n  2. Precios → Subir lista de precios (borrador)\n  3. Normalizador → Limpiar y mapear datos\n  4. Publicador → Activar en catálogo con versionado\n\nCARACTERÍSTICAS:\n  ✓ Pipeline de 4 etapas con checkpoints\n  ✓ NO publica sin pasar QA\n  ✓ Versionado + changelog obligatorio\n  ✓ Auditoría completa de cambios",
+        "height": 300,
+        "width": 1200
+      },
+      "id": "separador-l2-supplier",
+      "name": "═══ NIVEL L2 - PROVEEDOR ═══",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1700, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL3 TRANSVERSAL - AGENTE DE CONTINUACIONES\n===========================================\n\n🎯 ROL: Manejar estados incompletos (multi-turn)\n\n📋 FUNCIONALIDADES:\n  1. Gestionar TODAS las sesiones multi-turn:\n     - Centralizar lógica de awaiting_continuation\n     - Timeouts en UN solo lugar\n     - Estado consistente en BD\n  \n  2. Detectar sesión activa:\n     - Buscar en line_sessions\n     - Verificar timestamp\n     - Calcular tiempo transcurrido\n  \n  3. Gestionar timeouts:\n     - < 30 min → sesión activa\n     - > 30 min, < 24h → reenganche suave\n     - > 24h → expirada (nueva sesión)\n  \n  4. Generar prompts de reenganche contextuales:\n     \n     Sesión: Onboarding (3/4 preguntas)\n     Prompt: \"Oi! Vi que você estava se cadastrando.\n              Falta só o tipo de estabelecimento.\n              Quer continuar? 😊\"\n     \n     Sesión: Compras (2 productos en carrito)\n     Prompt: \"Oi! Você tinha começado um pedido:\n              • Tomate: 5kg\n              • Arroz: 10kg\n              \n              Quer continuar ou começar novo? 🛒\"\n  \n  5. Decidir acción:\n     - continuar → enviar al agente correcto con contexto\n     - expirado → ofrecer reenganche\n     - cancelar → limpiar sesión y empezar de nuevo\n  \n  6. Limpiar sesiones muertas:\n     - Marcar como expiradas\n     - Liberar recursos\n     - Mantener histórico para análisis\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Centralizar gestión de sesiones\n    - Calcular timeouts consistentemente\n    - Generar prompts contextuales\n    - Decidir: continuar/expirar/limpiar\n    - Mantener estado en BD\n  \n  ❌ NO DEBE:\n    - Ejecutar lógica de negocio\n    - Modificar datos de usuario/proveedor\n    - Tomar decisiones de dominio\n    - Crear órdenes o pedidos\n\n🔗 CONEXIONES:\n  Input: Agente Maestro (verifica sesión activa)\n  Output: Agente correspondiente o mensaje de reenganche\n\n🛠️ TOOLS:\n  - get_active_session(phone_number)\n  - calculate_elapsed_time(session_start)\n  - generate_reengagement_prompt(session_data)\n  - expire_session(session_id)\n  - cleanup_old_sessions()\n\n📊 OUTPUT:\n  {\n    accion: \"continuar\" | \"reenganche\" | \"nueva_sesion\",\n    session_id: \"abc123\",\n    agente_target: \"agente_compras\",\n    contexto: {...},\n    prompt_reenganche: \"...\"\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar gestión de continuaciones\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L3_continuaciones', ...input}}];"
+      },
+      "id": "l3-continuaciones",
+      "name": "L3: Continuaciones",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3300, 400],
+      "notes": "Gestión de sesiones multi-turn"
+    },
+    {
+      "parameters": {
+        "jsCode": "/*\n===========================================\nL3 TRANSVERSAL - AGENTE DE CALIDAD\n===========================================\n\n🎯 ROL: Validar y sanear entradas/salidas\n\n📋 FUNCIONALIDADES:\n  1. Validación de schemas:\n     - Campos obligatorios presentes?\n     - Tipos correctos? (string, number, date)\n     - Formatos válidos? (email, teléfono)\n  \n  2. Detección de outliers:\n     - Precios fuera de rango razonable\n     - Cantidades sospechosas (999999)\n     - Datos inconsistentes\n     \n     Ejemplo:\n     Input: {producto: \"Tomate\", precio: 0.05}\n     Output: {\n       valido: false,\n       warnings: [\"Precio muy bajo (esperado R$2-8/kg)\"]\n     }\n  \n  3. Verificación de campos obligatorios:\n     - Usuario: nombre, teléfono, ciudad\n     - Proveedor: razón social, teléfono, productos\n     - Pedido: items, cantidades, unidades\n  \n  4. Checklist de QA:\n     ✓ Formato de email válido\n     ✓ Teléfono con DDD (11 dígitos)\n     ✓ Ciudad existe en Brasil\n     ✓ Unidad de medida reconocida\n     ✓ Precio > 0\n     ✓ Cantidad > 0\n  \n  5. Generar reporte de validación:\n     ━━━━━━━━━━━━━━━━━━\n     🔍 VALIDAÇÃO\n     \n     ✅ Schema: OK\n     ⚠️ Warnings (2):\n       • Precio bajo: Tomate R$0.50/kg\n       • Email no proporcionado (opcional)\n     ❌ Errores (0)\n     \n     Resultado: VÁLIDO COM WARNINGS\n     ━━━━━━━━━━━━━━━━━━\n  \n  6. Sugerir correcciones:\n     - Si email inválido: \"Formato correcto: user@domain.com\"\n     - Si precio sospechoso: \"Verificar precio (esperado: R$X-Y)\"\n\n🔧 ALCANCE:\n  ✅ DEBE:\n    - Ejecutar ANTES de guardar en BD\n    - Validar schemas y formatos\n    - Detectar outliers\n    - Generar reporte claro\n    - Sugerir correcciones\n  \n  ❌ NO DEBE:\n    - Guardar datos (eso es del agente de dominio)\n    - Corregir automáticamente (solo sugerir)\n    - Tomar decisiones de negocio\n    - Modificar datos sin confirmación\n\n🔗 CONEXIONES:\n  Input: Cualquier agente L2 (antes de persistir)\n  Output: {valido: bool, errores: [], warnings: []}\n\n🛠️ TOOLS:\n  - validate_schema(data, schema)\n  - validate_format(value, type)\n  - detect_outlier(value, expected_range)\n  - check_required_fields(data, required)\n  - suggest_correction(error)\n\n📊 OUTPUT:\n  {\n    valido: true,\n    errores: [],\n    warnings: [\"Precio bajo detectado\"],\n    sugerencias: [\"Verificar precio de Tomate\"]\n  }\n*/\n\nconst input = $input.first().json;\n\n// TODO: Implementar validación de calidad\n// Ver comentarios arriba para detalles\n\nreturn [{json: {stage: 'L3_calidad', ...input}}];"
+      },
+      "id": "l3-calidad",
+      "name": "L3: Calidad de Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3600, 400],
+      "notes": "Validación y QA de datos"
+    },
+    {
+      "parameters": {
+        "content": "════════════════════════════════════════════════════════════════════════════\n                    NIVEL L3 - TRANSVERSALES\n════════════════════════════════════════════════════════════════════════════\n\n🔄 Agentes que sirven a AMBOS paquetes (Usuario y Proveedor)\n\nAGENTES:\n  • Continuaciones → Gestión de sesiones multi-turn\n  • Calidad de Datos → Validación antes de persistir\n\nCARACTERÍSTICAS:\n  ✓ Reutilizables por cualquier agente L2\n  ✓ NO tienen lógica de dominio\n  ✓ Servicios puros (input → validación → output)\n  ✓ Estado mínimo",
+        "height": 300,
+        "width": 600
+      },
+      "id": "separador-l3",
+      "name": "═══ NIVEL L3 ═══",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [3240, 240]
+    },
+    {
+      "parameters": {
+        "content": "# 📤 PUNTO DE SALIDA\n\nTodos los mensajes finales convergen aquí.\n\nRecibe:\n- output (mensaje para el usuario)\n- phone_number\n- metadata\n\nEnvía a WhatsApp.",
+        "height": 220,
+        "width": 300
+      },
+      "id": "note-salida",
+      "name": "Nota: Salida del Sistema",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [3900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": "={{ $json.output }}"
+      },
+      "id": "whatsapp-send",
+      "name": "WhatsApp Send",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [4100, 400],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "content": "════════════════════════════════════════════════════════════════════════════\n                    📋 RESUMEN DE ARQUITECTURA\n════════════════════════════════════════════════════════════════════════════\n\n🏗️ ESTRUCTURA DE 4 NIVELES:\n\n┌─────────────────────────────────────────────────────────────────┐\n│ L0 - NÚCLEO                                                     │\n│   • Agente Maestro (orquestador)                                │\n│   • Agente Base (menú)                                          │\n└─────────────────────────────────────────────────────────────────┘\n                              ↓\n┌─────────────────────────────────────────────────────────────────┐\n│ L1 - CLASIFICACIÓN                                              │\n│   • Agente de Identidad (user vs supplier)                      │\n└─────────────────────────────────────────────────────────────────┘\n                              ↓\n                    ┌─────────┴─────────┐\n                    ↓                   ↓\n┌────────────────────────────┐  ┌────────────────────────────┐\n│ L2 - USUARIO               │  │ L2 - PROVEEDOR             │\n│ • Onboarding               │  │ • Onboarding               │\n│ • Preferencias             │  │ • Precios                  │\n│ • Catálogo                 │  │ • Normalizador             │\n│ • Compras                  │  │ • Publicador               │\n│ • Checkout                 │  └────────────────────────────┘\n└────────────────────────────┘\n                    │                   │\n                    └─────────┬─────────┘\n                              ↓\n┌─────────────────────────────────────────────────────────────────┐\n│ L3 - TRANSVERSALES                                              │\n│   • Continuaciones (multi-turn)                                 │\n│   • Calidad de Datos (validación)                               │\n└─────────────────────────────────────────────────────────────────┘\n\n🎯 PRINCIPIOS:\n  1. Cada agente tiene UN rol claro\n  2. NO se solapan responsabilidades\n  3. Comunicación via contexto mínimo\n  4. Validación antes de persistir\n  5. Versionado y auditoría obligatorios\n\n📚 ESTE ES UN BOSQUEJO:\n  • Los nodos Code tienen comentarios explicativos\n  • NO están implementados funcionalmente\n  • Sirve como blueprint para el equipo\n  • Importar en n8n para visualizar estructura",
+        "height": 720,
+        "width": 800
+      },
+      "id": "resumen-arquitectura",
+      "name": "📋 RESUMEN",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [100, 800]
+    },
+    {
+      "parameters": {
+        "content": "════════════════════════════════════════════════════════════════════════════\n                    🚀 ROADMAP DE IMPLEMENTACIÓN\n════════════════════════════════════════════════════════════════════════════\n\n🔴 FASE 1 - CRÍTICO (Hacer primero):\n  1. ✅ Crear Agente Maestro (orquestador)\n  2. ✅ Simplificar Agente Base (solo menú)\n  3. ✅ Crear Agente de Identidad (clasificador)\n  4. ✅ Crear Agente de Checkout (confirmar órdenes)\n\n  Duración: 2 semanas\n  Resultado: Sistema funcional con separación de roles\n\n🟠 FASE 2 - IMPORTANTE (Próximas 2-3 semanas):\n  5. ⚠️ Separar Agente Normalizador\n  6. ⚠️ Convertir Vector Search en agente formal\n  7. ⚠️ Centralizar Agente de Continuaciones\n  8. ⚠️ Crear Agente Publicador con versionado\n\n  Duración: 3 semanas\n  Resultado: Pipeline completo con QA y auditoría\n\n🟡 FASE 3 - MEJORAS (Futuro):\n  9. ❌ Agente de Cotización (comparar proveedores)\n  10. ❌ Agente de Debug (diagnóstico)\n  11. ❌ Mejoras de UX y personalización\n\n  Duración: 4 semanas\n  Resultado: Sistema completo con inteligencia avanzada\n\n📊 MÉTRICAS DE ÉXITO:\n  • Cada agente tiene <200 líneas de código\n  • 0 solapamiento de responsabilidades\n  • 100% de transacciones con auditoría\n  • Tiempo de respuesta <3 segundos\n  • Tasa de error <1%",
+        "height": 720,
+        "width": 800
+      },
+      "id": "roadmap",
+      "name": "🚀 ROADMAP",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1000, 800]
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "L0: Agente Maestro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L0: Agente Maestro": {
+      "main": [
+        [
+          {
+            "node": "L0: Agente Base (Menú)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L0: Agente Base (Menú)": {
+      "main": [
+        [
+          {
+            "node": "L1: Agente de Identidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L1: Agente de Identidad": {
+      "main": [
+        [
+          {
+            "node": "Switch: Role",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch: Role": {
+      "main": [
+        [
+          {
+            "node": "L2U: Onboarding Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "L2S: Onboarding Proveedor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2U: Onboarding Usuario": {
+      "main": [
+        [
+          {
+            "node": "L2U: Preferencias & Setup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2U: Preferencias & Setup": {
+      "main": [
+        [
+          {
+            "node": "L2U: Catálogo & Búsqueda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2U: Catálogo & Búsqueda": {
+      "main": [
+        [
+          {
+            "node": "L2U: Compras (Pedido)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2U: Compras (Pedido)": {
+      "main": [
+        [
+          {
+            "node": "L2U: Checkout & Confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2U: Checkout & Confirmación": {
+      "main": [
+        [
+          {
+            "node": "L3: Continuaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2S: Onboarding Proveedor": {
+      "main": [
+        [
+          {
+            "node": "L2S: Precios (Subida)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2S: Precios (Subida)": {
+      "main": [
+        [
+          {
+            "node": "L2S: Normalizador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2S: Normalizador": {
+      "main": [
+        [
+          {
+            "node": "L2S: Publicador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L2S: Publicador": {
+      "main": [
+        [
+          {
+            "node": "L3: Continuaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L3: Continuaciones": {
+      "main": [
+        [
+          {
+            "node": "L3: Calidad de Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L3: Calidad de Datos": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-12T00:00:00.000Z",
+  "versionId": "bosquejo-v1"
+}
