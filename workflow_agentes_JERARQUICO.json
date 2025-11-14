@@ -1,5 +1,5 @@
 {
-  "name": "Frepi - Arquitectura Agentes Jerárquica (Conectado)",
+  "name": "Frepi - Arquitectura Híbrida (Switch + AgentTool)",
   "nodes": [
     {
       "parameters": {
@@ -17,12 +17,12 @@
         "promptType": "define",
         "text": "={{ $json.chatInput }}",
         "options": {
-          "systemMessage": "🧠 AGENTE MAESTRO\n\n🎯 ROL: Orquestador principal que recibe todos los mensajes.\n\n📋 DECISIONES:\n- Si pide 'menu', 'ayuda' → usa tool 'Agente Base'\n- Si tiene intención clara → usa tool 'Agente Identidad'\n- Si es saludo simple → responde directamente\n\n🛠️ TOOLS DISPONIBLES:\n1. Agente Base - Para mostrar menú\n2. Agente Identidad - Para clasificar y procesar acciones\n\nTODO: Configurar prompts completos"
+          "systemMessage": "🧠 AGENTE MAESTRO - CLASIFICADOR\n\n🎯 ROL: Clasificar la intención del usuario y retornar ruta.\n\n📋 CLASIFICACIÓN:\n\n**MENU** - Si usuario dice:\n- 'menu', 'ayuda', 'opciones', 'qué puedo hacer'\n\n**USUARIO** - Si usuario dice:\n- 'quiero comprar', 'buscar producto', 'catálogo'\n- 'hacer pedido', 'ver precios', 'agregar al carrito'\n- 'soy restaurante', 'soy cliente'\n\n**PROVEEDOR** - Si usuario dice:\n- 'quiero vender', 'soy proveedor', 'soy distribuidor'\n- 'subir lista', 'actualizar precios', 'cargar productos'\n\n🔧 IMPORTANTE:\nDebes responder SIEMPRE con un JSON:\n{\n  \"route\": \"menu\" | \"usuario\" | \"proveedor\",\n  \"confidence\": 0.95,\n  \"reasoning\": \"Razón de la clasificación\"\n}\n\nSi no estás seguro, pregunta al usuario y usa route: \"menu\".\n\nTODO: Consultar BD para perfil existente"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [400, 1000],
+      "position": [300, 1000],
       "id": "agent-maestro",
       "name": "🧠 Agente Maestro"
     },
@@ -34,12 +34,12 @@
           "value": "gpt-4o-mini"
         },
         "options": {
-          "temperature": 0.3
+          "temperature": 0.2
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [200, 880],
+      "position": [100, 880],
       "id": "openai-maestro",
       "name": "OpenAI Maestro",
       "credentials": {
@@ -57,32 +57,68 @@
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [200, 1120],
+      "position": [100, 1120],
       "id": "memory-maestro",
       "name": "Memory Maestro"
     },
     {
       "parameters": {
-        "name": "Agente Base",
-        "description": "Muestra el menú principal. Úsalo cuando usuario pida 'menu', 'ayuda', 'opciones'."
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "route-menu",
+              "leftValue": "={{ $json.output.route || $json.route || 'menu' }}",
+              "rightValue": "menu",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "route-usuario",
+              "leftValue": "={{ $json.output.route || $json.route || 'menu' }}",
+              "rightValue": "usuario",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "route-proveedor",
+              "leftValue": "={{ $json.output.route || $json.route || 'menu' }}",
+              "rightValue": "proveedor",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "type": "@n8n/n8n-nodes-langchain.agentTool",
-      "typeVersion": 2.2,
-      "position": [600, 800],
-      "id": "tool-agente-base",
-      "name": "Tool: Agente Base"
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [600, 1000],
+      "id": "switch-router",
+      "name": "🔀 Switch Router"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "={{ $json.query }}",
+        "text": "={{ $json.chatInput || $json.query }}",
         "options": {
-          "systemMessage": "🏠 AGENTE BASE - MENÚ\n\n🎯 ROL: Mostrar menú principal.\n\n📋 MENÚ:\n1️⃣ Ver Catálogo\n2️⃣ Hacer Pedido\n3️⃣ Configurar Preferencias\n4️⃣ Subir Precios (Proveedores)\n5️⃣ Ayuda\n\nMuestra el menú amigablemente con emojis.\n\nTODO: Personalizar según perfil"
+          "systemMessage": "🏠 AGENTE BASE - MENÚ\n\n🎯 ROL: Mostrar menú principal de Frepi.\n\n📋 MENÚ:\n¡Hola! Soy Frepi 👋\n\n¿Qué te gustaría hacer?\n\n1️⃣ **Ver Catálogo** - Buscar productos\n2️⃣ **Hacer Pedido** - Comprar productos\n3️⃣ **Configurar Preferencias** - Productos frecuentes\n4️⃣ **Subir Precios** (Proveedores) - Actualizar lista\n5️⃣ **Ayuda** - Información y soporte\n\nEscribe el número o dime qué necesitas 😊\n\n💡 TIP: Puedes escribir directamente lo que buscas, ej: \"quiero arroz\"\n\nTODO: Personalizar según perfil del usuario"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [800, 800],
+      "position": [900, 800],
       "id": "agent-base",
       "name": "🏠 Agente Base"
     },
@@ -99,7 +135,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1000, 680],
+      "position": [700, 680],
       "id": "openai-base",
       "name": "OpenAI Base",
       "credentials": {
@@ -117,92 +153,21 @@
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1000, 920],
+      "position": [700, 920],
       "id": "memory-base",
       "name": "Memory Base"
     },
     {
       "parameters": {
-        "name": "Agente Identidad",
-        "description": "Clasifica si usuario es Cliente o Proveedor. Úsalo cuando tenga intención de acción (comprar, vender, registrarse)."
-      },
-      "type": "@n8n/n8n-nodes-langchain.agentTool",
-      "typeVersion": 2.2,
-      "position": [600, 1200],
-      "id": "tool-agente-identidad",
-      "name": "Tool: Agente Identidad"
-    },
-    {
-      "parameters": {
         "promptType": "define",
-        "text": "={{ $json.query }}",
+        "text": "={{ $json.chatInput || $json.query }}",
         "options": {
-          "systemMessage": "🎭 AGENTE IDENTIDAD - CLASIFICADOR\n\n🎯 ROL: Clasificar entre Cliente y Proveedor.\n\n📋 DETECCIÓN:\n**CLIENTE**: 'comprar', 'necesito productos', 'catálogo'\n**PROVEEDOR**: 'vender', 'soy proveedor', 'subir lista'\n\n🛠️ TOOLS:\n- Usuario Manager: Usa cuando sea CLIENTE\n- Proveedor Manager: Usa cuando sea PROVEEDOR\n\nSi no está claro, pregunta directamente.\n\nTODO: Agregar consulta a BD"
+          "systemMessage": "👤 USUARIO MANAGER - COORDINADOR DE CLIENTES\n\n🎯 ROL: Coordinar el flujo completo del cliente.\n\n🛠️ HERRAMIENTAS DISPONIBLES:\n\n1. **Onboarding Usuario**: Usa cuando:\n   - Usuario es nuevo (no tiene perfil)\n   - Dice \"quiero registrarme\", \"soy nuevo\"\n   \n2. **Catálogo**: Usa cuando:\n   - Usuario busca productos: \"quiero arroz\", \"buscar aceite\"\n   - Pide ver catálogo o precios\n   \n3. **Compras**: Usa cuando:\n   - Usuario quiere agregar al carrito\n   - Dice \"agregar\", \"añadir\", \"quiero 2 de...\"\n   - Pide ver carrito\n   \n4. **Checkout**: Usa cuando:\n   - Usuario está listo para pagar\n   - Dice \"confirmar\", \"finalizar\", \"pagar\"\n\n💡 FLUJO TÍPICO:\n- Nuevo: Onboarding → Catálogo → Compras → Checkout\n- Existente: Catálogo → Compras → Checkout\n\n🔧 DECISIÓN:\nAnaliza el mensaje del usuario y llama a la herramienta apropiada.\nPuedes llamar múltiples herramientas en secuencia si es necesario.\n\nTODO: Consultar BD para estado del usuario"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [800, 1200],
-      "id": "agent-identidad",
-      "name": "🎭 Agente Identidad"
-    },
-    {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "mode": "list",
-          "value": "gpt-4o-mini"
-        },
-        "options": {
-          "temperature": 0.2
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
-      "position": [1000, 1080],
-      "id": "openai-identidad",
-      "name": "OpenAI Identidad",
-      "credentials": {
-        "openAiApi": {
-          "id": "openai-creds",
-          "name": "OpenAI Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sessionIdType": "customKey",
-        "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 8
-      },
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-      "typeVersion": 1.3,
-      "position": [1000, 1320],
-      "id": "memory-identidad",
-      "name": "Memory Identidad"
-    },
-    {
-      "parameters": {
-        "name": "Usuario Manager",
-        "description": "Gestor de flujo de CLIENTES. Maneja onboarding, catálogo, compras, checkout."
-      },
-      "type": "@n8n/n8n-nodes-langchain.agentTool",
-      "typeVersion": 2.2,
-      "position": [1000, 1440],
-      "id": "tool-usuario-manager",
-      "name": "Tool: Usuario Manager"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "={{ $json.query }}",
-        "options": {
-          "systemMessage": "👤 USUARIO MANAGER\n\n🎯 ROL: Coordinar flujo de clientes.\n\n🛠️ TOOLS:\n- Onboarding Usuario: Si es nuevo\n- Catálogo: Si quiere buscar productos\n- Compras: Si quiere agregar al carrito\n- Checkout: Si está listo para pagar\n\n💡 FLUJO:\nNuevo → Onboarding → Catálogo → Compras → Checkout\nExistente → Catálogo → Compras → Checkout\n\nTODO: Detectar estado del usuario"
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 2.2,
-      "position": [1200, 1440],
+      "position": [900, 1000],
       "id": "agent-usuario-manager",
       "name": "👤 Usuario Manager"
     },
@@ -219,7 +184,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1400, 1320],
+      "position": [700, 880],
       "id": "openai-usuario-manager",
       "name": "OpenAI Usuario Manager",
       "credentials": {
@@ -233,22 +198,22 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 15
+        "contextWindowLength": 20
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1400, 1560],
+      "position": [700, 1120],
       "id": "memory-usuario-manager",
       "name": "Memory Usuario Manager"
     },
     {
       "parameters": {
         "name": "Onboarding Usuario",
-        "description": "Registra nuevos usuarios/restaurantes."
+        "description": "Registra nuevos usuarios/restaurantes. Usa cuando el usuario sea nuevo y necesite registro (pide nombre restaurante, contacto, ciudad, tipo)."
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
-      "position": [1400, 1680],
+      "position": [1100, 800],
       "id": "tool-onboarding-usuario",
       "name": "Tool: Onboarding Usuario"
     },
@@ -257,12 +222,12 @@
         "promptType": "define",
         "text": "={{ $json.query }}",
         "options": {
-          "systemMessage": "👋 ONBOARDING USUARIO\n\n🎯 ROL: Registrar nuevos restaurantes.\n\n📋 DATOS (uno a uno):\n1. Nombre restaurante\n2. Nombre contacto\n3. Ciudad\n4. Tipo negocio\n\n✅ REGLAS:\n- UNA pregunta a la vez\n- Amigable y natural\n\n🛠️ TOOLS:\n- Guardar Restaurante: Para persistir en BD\n\n📤 AL COMPLETAR:\n'✅ Registro completo. Escribe menu para opciones.'\n\nTODO: Conectar Supabase"
+          "systemMessage": "👋 ONBOARDING USUARIO\n\n🎯 ROL: Registrar nuevos restaurantes/clientes.\n\n📋 DATOS A RECOLECTAR (uno a uno):\n1. Nombre del restaurante\n2. Nombre de contacto\n3. Ciudad\n4. Tipo de negocio (Restaurante, Hotel, Cafetería, Panadería, etc)\n\n✅ REGLAS:\n- UNA pregunta a la vez\n- Amigable y natural\n- Si dan varios datos juntos, aceptar todos\n\n🛠️ HERRAMIENTA:\n- **Guardar Restaurante**: Usa cuando tengas los 4 datos completos\n\n📤 FORMATO AL COMPLETAR:\n'✅ ¡Perfecto! Registro completo.\nTu restaurante [NOMBRE] ya está registrado.\nEscribe \"menu\" para ver las opciones disponibles.'\n\nTODO: Validar duplicados en BD"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [1600, 1680],
+      "position": [1300, 800],
       "id": "agent-onboarding-usuario",
       "name": "👋 Onboarding Usuario"
     },
@@ -279,7 +244,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1800, 1560],
+      "position": [1500, 680],
       "id": "openai-onboarding-usuario",
       "name": "OpenAI Onboarding",
       "credentials": {
@@ -293,32 +258,32 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 20
+        "contextWindowLength": 25
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1800, 1800],
+      "position": [1500, 920],
       "id": "memory-onboarding-usuario",
       "name": "Memory Onboarding"
     },
     {
       "parameters": {
-        "jsCode": "// TODO: Guardar restaurante en Supabase\nconst data = $input.item.json;\n\nreturn {\n  success: true,\n  message: 'Restaurante guardado (TODO: implementar Supabase)',\n  data: data\n};"
+        "jsCode": "// TODO: Guardar restaurante en Supabase\nconst data = $input.item.json;\n\nreturn {\n  success: true,\n  restaurant_id: 'uuid-12345',\n  message: 'Restaurante guardado exitosamente',\n  data: {\n    name: data.restaurant_name || 'Restaurante',\n    contact: data.contact_name || 'Contacto',\n    city: data.city || 'Ciudad',\n    type: data.business_type || 'Restaurante'\n  },\n  todo: 'Implementar INSERT en Supabase tabla restaurants'\n};"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
-      "position": [1800, 1920],
+      "position": [1500, 1040],
       "id": "tool-code-guardar-restaurante",
       "name": "Tool Code: Guardar Restaurante"
     },
     {
       "parameters": {
         "name": "Catálogo",
-        "description": "Busca productos en el catálogo. Usa cuando usuario quiera ver/buscar productos."
+        "description": "Busca productos en el catálogo maestro. Usa cuando usuario busque productos específicos o quiera explorar el catálogo."
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
-      "position": [1400, 1800],
+      "position": [1100, 920],
       "id": "tool-catalogo",
       "name": "Tool: Catálogo"
     },
@@ -327,12 +292,12 @@
         "promptType": "define",
         "text": "={{ $json.query }}",
         "options": {
-          "systemMessage": "🔍 CATÁLOGO\n\n🎯 ROL: Ayudar a buscar productos.\n\n📋 FUNCIONALIDADES:\n- Búsqueda semántica\n- Mostrar top 5 resultados\n- Sugerir alternativas\n\n🛠️ TOOLS:\n- Buscar Productos: Búsqueda vectorial en BD\n\n💡 RESPUESTA:\nMuestra productos con nombre, precio, proveedor.\n\nTODO: Implementar vector search"
+          "systemMessage": "🔍 CATÁLOGO - BÚSQUEDA DE PRODUCTOS\n\n🎯 ROL: Ayudar a buscar y explorar productos.\n\n📋 FUNCIONALIDADES:\n- Búsqueda semántica de productos\n- Mostrar top 5 resultados\n- Comparar precios entre proveedores\n- Sugerir alternativas\n\n🛠️ HERRAMIENTA:\n- **Buscar Productos**: Búsqueda vectorial en catálogo\n  Input: { \"query\": \"arroz 5kg\" }\n  Output: Lista de productos con precios\n\n💡 RESPUESTA:\nMuestra productos claramente:\n\n🔍 Resultados para \"[búsqueda]\":\n\n1️⃣ **Arroz Tio João 5kg**\n   💰 R$ 25,90 | 📦 Fornecedor A\n   \n2️⃣ **Arroz Prato Fino 5kg**\n   💰 R$ 24,50 | 📦 Fornecedor B\n\n¿Quieres agregar alguno al carrito?\n\nTODO: Implementar match_products_v2 con embeddings"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [1600, 1800],
+      "position": [1300, 920],
       "id": "agent-catalogo",
       "name": "🔍 Catálogo"
     },
@@ -349,7 +314,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1800, 2040],
+      "position": [1500, 1160],
       "id": "openai-catalogo",
       "name": "OpenAI Catálogo",
       "credentials": {
@@ -363,32 +328,32 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 25
+        "contextWindowLength": 30
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1800, 2160],
+      "position": [1500, 1280],
       "id": "memory-catalogo",
       "name": "Memory Catálogo"
     },
     {
       "parameters": {
-        "jsCode": "// TODO: Búsqueda vectorial en Supabase\nconst query = $input.item.json.query || '';\n\nreturn {\n  results: [\n    { product: 'Arroz Tio João 5kg', price: 25.90, supplier: 'Fornecedor A' },\n    { product: 'Arroz Prato Fino 5kg', price: 24.50, supplier: 'Fornecedor B' }\n  ],\n  message: 'TODO: Implementar match_products_v2'\n};"
+        "jsCode": "// TODO: Búsqueda vectorial en Supabase usando match_products_v2\nconst query = $input.item.json.query || '';\n\n// Simulación de resultados\nreturn {\n  query: query,\n  results: [\n    { \n      id: 'prod-001',\n      product: 'Arroz Tio João 5kg', \n      price: 25.90, \n      unit: 'kg',\n      supplier: 'Fornecedor A',\n      similarity: 0.95\n    },\n    { \n      id: 'prod-002',\n      product: 'Arroz Prato Fino 5kg', \n      price: 24.50, \n      unit: 'kg',\n      supplier: 'Fornecedor B',\n      similarity: 0.92\n    },\n    { \n      id: 'prod-003',\n      product: 'Arroz Integral 5kg', \n      price: 28.90, \n      unit: 'kg',\n      supplier: 'Fornecedor C',\n      similarity: 0.88\n    }\n  ],\n  total_results: 3,\n  todo: 'Implementar: 1) Generar embedding del query, 2) Llamar match_products_v2(embedding, 0.7, 5)'\n};"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
-      "position": [1800, 2280],
+      "position": [1500, 1400],
       "id": "tool-code-buscar-productos",
       "name": "Tool Code: Buscar Productos"
     },
     {
       "parameters": {
         "name": "Compras",
-        "description": "Gestiona carrito de compras. Usa cuando usuario quiera agregar productos o ver carrito."
+        "description": "Gestiona el carrito de compras. Usa cuando usuario quiera agregar productos, ver carrito, o modificar cantidades."
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
-      "position": [1400, 1920],
+      "position": [1100, 1040],
       "id": "tool-compras",
       "name": "Tool: Compras"
     },
@@ -397,12 +362,12 @@
         "promptType": "define",
         "text": "={{ $json.query }}",
         "options": {
-          "systemMessage": "🛒 COMPRAS\n\n🎯 ROL: Gestionar carrito.\n\n📋 FUNCIONALIDADES:\n- Agregar productos\n- Modificar cantidades\n- Ver carrito\n- Calcular total\n\n🛠️ TOOLS:\n- Gestionar Carrito: CRUD del carrito\n\n💡 RESPUESTA:\nMuestra carrito con productos, cantidades, total.\n\nTODO: Implementar carrito temporal"
+          "systemMessage": "🛒 COMPRAS - GESTIÓN DE CARRITO\n\n🎯 ROL: Gestionar el carrito de compras del usuario.\n\n📋 FUNCIONALIDADES:\n- Agregar productos al carrito\n- Modificar cantidades\n- Eliminar items\n- Ver resumen del carrito\n- Calcular total\n\n🛠️ HERRAMIENTA:\n- **Gestionar Carrito**: CRUD del carrito\n  Input: { \n    \"action\": \"add\" | \"remove\" | \"update\" | \"view\",\n    \"product_id\": \"prod-001\",\n    \"quantity\": 2\n  }\n\n💡 RESPUESTA:\nMuestra carrito claramente:\n\n🛒 Tu Carrito:\n\n1️⃣ Arroz Tio João 5kg x2\n   💰 R$ 51,80\n\n2️⃣ Feijão Preto 1kg x3\n   💰 R$ 25,50\n\n━━━━━━━━━━━━━━━\n💵 TOTAL: R$ 77,30\n\n¿Deseas agregar más productos o finalizar el pedido?\n\nTODO: Implementar carrito en sesión o BD"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [1600, 1920],
+      "position": [1300, 1040],
       "id": "agent-compras",
       "name": "🛒 Compras"
     },
@@ -419,7 +384,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1800, 2400],
+      "position": [1500, 1520],
       "id": "openai-compras",
       "name": "OpenAI Compras",
       "credentials": {
@@ -433,32 +398,32 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 30
+        "contextWindowLength": 40
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1800, 2520],
+      "position": [1500, 1640],
       "id": "memory-compras",
       "name": "Memory Compras"
     },
     {
       "parameters": {
-        "jsCode": "// TODO: Gestionar carrito en sesión o BD\nconst action = $input.item.json.action; // 'add', 'remove', 'view'\nconst product = $input.item.json.product;\n\nreturn {\n  cart: [\n    { product: 'Arroz 5kg', qty: 2, price: 25.90 }\n  ],\n  total: 51.80,\n  message: 'TODO: Implementar carrito real'\n};"
+        "jsCode": "// TODO: Gestionar carrito en memoria de sesión o BD temporal\nconst action = $input.item.json.action || 'view';\nconst productId = $input.item.json.product_id;\nconst quantity = $input.item.json.quantity || 1;\n\n// Simulación de carrito\nlet cart = [\n  { \n    product_id: 'prod-001',\n    product: 'Arroz Tio João 5kg', \n    quantity: 2, \n    unit_price: 25.90,\n    subtotal: 51.80 \n  },\n  { \n    product_id: 'prod-004',\n    product: 'Feijão Preto 1kg', \n    quantity: 3, \n    unit_price: 8.50,\n    subtotal: 25.50 \n  }\n];\n\nif (action === 'add' && productId) {\n  cart.push({\n    product_id: productId,\n    product: 'Producto Nuevo',\n    quantity: quantity,\n    unit_price: 10.00,\n    subtotal: 10.00 * quantity\n  });\n}\n\nconst total = cart.reduce((sum, item) => sum + item.subtotal, 0);\n\nreturn {\n  action: action,\n  cart: cart,\n  total: total.toFixed(2),\n  item_count: cart.length,\n  todo: 'Implementar: 1) Tabla cart_items en Supabase, 2) Gestión por session_id'\n};"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
-      "position": [1800, 2640],
+      "position": [1500, 1760],
       "id": "tool-code-gestionar-carrito",
       "name": "Tool Code: Gestionar Carrito"
     },
     {
       "parameters": {
         "name": "Checkout",
-        "description": "Confirma y finaliza pedido. Usa cuando usuario esté listo para pagar."
+        "description": "Finaliza y confirma el pedido. Usa cuando usuario esté listo para pagar y confirmar (dice 'confirmar', 'finalizar', 'pagar')."
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
-      "position": [1400, 2040],
+      "position": [1100, 1160],
       "id": "tool-checkout",
       "name": "Tool: Checkout"
     },
@@ -467,12 +432,12 @@
         "promptType": "define",
         "text": "={{ $json.query }}",
         "options": {
-          "systemMessage": "✅ CHECKOUT\n\n🎯 ROL: Confirmar pedido.\n\n📋 FUNCIONALIDADES:\n- Revisar pedido\n- Confirmar dirección\n- Crear orden en BD\n- Notificar proveedores\n\n🛠️ TOOLS:\n- Crear Orden: Persiste pedido en BD\n\n💡 RESPUESTA:\nConfirma orden con ID, total, entrega estimada.\n\nTODO: Implementar creación de orden"
+          "systemMessage": "✅ CHECKOUT - CONFIRMACIÓN DE PEDIDO\n\n🎯 ROL: Confirmar y finalizar el pedido del usuario.\n\n📋 FUNCIONALIDADES:\n- Revisar pedido final\n- Confirmar dirección de entrega\n- Confirmar contacto\n- Crear orden en BD\n- Generar comprobante\n- Notificar proveedores\n\n🛠️ HERRAMIENTA:\n- **Crear Orden**: Persiste pedido en BD\n  Input: { \n    \"cart\": [...],\n    \"delivery_address\": \"...\",\n    \"notes\": \"...\"\n  }\n\n💡 PROCESO:\n1. Pedir confirmación de dirección\n2. Revisar resumen final\n3. Solicitar confirmación\n4. Crear orden\n5. Responder con comprobante\n\n📤 RESPUESTA:\n✅ ¡Pedido Confirmado!\n\n📋 Orden: #ORD-12345\n💵 Total: R$ 77,30\n📍 Entrega: [Dirección]\n📅 Estimado: 2025-11-15\n\n¡Gracias por tu compra! Los proveedores fueron notificados.\n\nTODO: Implementar creación de orden y notificaciones"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [1600, 2040],
+      "position": [1300, 1160],
       "id": "agent-checkout",
       "name": "✅ Checkout"
     },
@@ -489,7 +454,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1800, 2760],
+      "position": [1500, 1880],
       "id": "openai-checkout",
       "name": "OpenAI Checkout",
       "credentials": {
@@ -503,46 +468,35 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 20
+        "contextWindowLength": 30
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1800, 2880],
+      "position": [1500, 2000],
       "id": "memory-checkout",
       "name": "Memory Checkout"
     },
     {
       "parameters": {
-        "jsCode": "// TODO: Crear orden en Supabase\nconst cart = $input.item.json.cart || [];\n\nreturn {\n  order_id: 'ORD-12345',\n  total: 150.80,\n  status: 'confirmed',\n  estimated_delivery: '2025-11-15',\n  message: 'TODO: Implementar creación real de orden'\n};"
+        "jsCode": "// TODO: Crear orden en Supabase tabla orders\nconst cart = $input.item.json.cart || [];\nconst deliveryAddress = $input.item.json.delivery_address || 'Dirección pendiente';\nconst notes = $input.item.json.notes || '';\n\nconst orderId = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();\nconst total = cart.reduce((sum, item) => sum + (item.subtotal || 0), 0);\nconst estimatedDelivery = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];\n\nreturn {\n  order_id: orderId,\n  status: 'confirmed',\n  total: total.toFixed(2),\n  delivery_address: deliveryAddress,\n  estimated_delivery: estimatedDelivery,\n  items: cart,\n  notes: notes,\n  created_at: new Date().toISOString(),\n  todo: 'Implementar: 1) INSERT en tabla orders, 2) INSERT en order_items, 3) Notificar proveedores via webhook'\n};"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
-      "position": [1800, 3000],
+      "position": [1500, 2120],
       "id": "tool-code-crear-orden",
       "name": "Tool Code: Crear Orden"
     },
     {
       "parameters": {
-        "name": "Proveedor Manager",
-        "description": "Gestor de flujo de PROVEEDORES. Maneja onboarding, precios, normalización, publicación."
-      },
-      "type": "@n8n/n8n-nodes-langchain.agentTool",
-      "typeVersion": 2.2,
-      "position": [1000, 1560],
-      "id": "tool-proveedor-manager",
-      "name": "Tool: Proveedor Manager"
-    },
-    {
-      "parameters": {
         "promptType": "define",
-        "text": "={{ $json.query }}",
+        "text": "={{ $json.chatInput || $json.query }}",
         "options": {
-          "systemMessage": "🏭 PROVEEDOR MANAGER\n\n🎯 ROL: Coordinar flujo de proveedores.\n\n🛠️ TOOLS:\n- Onboarding Proveedor: Si es nuevo\n- Precios: Si quiere subir lista\n\n💡 FLUJO:\nNuevo → Onboarding → Precios\nExistente → Precios\n\nPrecios automáticamente llama a Normalizador y Publicador.\n\nTODO: Detectar estado del proveedor"
+          "systemMessage": "🏭 PROVEEDOR MANAGER - COORDINADOR DE PROVEEDORES\n\n🎯 ROL: Coordinar el flujo completo del proveedor.\n\n🛠️ HERRAMIENTA DISPONIBLE:\n\n1. **Precios**: Usa cuando:\n   - Proveedor quiere subir lista de precios\n   - Dice \"subir lista\", \"actualizar precios\", \"cargar productos\"\n   - Envía archivo o imagen de lista\n\n💡 FLUJO:\n- Proveedor nuevo: Primero onboarding (TODO), luego Precios\n- Proveedor existente: Directo a Precios\n\n🔧 PROCESO:\n1. Recibir intención del proveedor\n2. Si quiere subir precios → llamar herramienta \"Precios\"\n3. La herramienta Precios maneja: parseo, normalización, publicación\n\n📋 CONTEXTO:\nEl agente Precios se encarga del flujo completo:\n- Recibir archivo/imagen\n- Parsear contenido\n- Normalizar productos (unidades, matching)\n- Publicar al catálogo\n\nTú solo coordinas y decides cuándo llamar a Precios.\n\nTODO: Agregar Onboarding Proveedor y consulta de estado"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [1200, 1560],
+      "position": [900, 1200],
       "id": "agent-proveedor-manager",
       "name": "🏭 Proveedor Manager"
     },
@@ -559,7 +513,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1400, 3120],
+      "position": [700, 1280],
       "id": "openai-proveedor-manager",
       "name": "OpenAI Proveedor Manager",
       "credentials": {
@@ -573,22 +527,22 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 15
+        "contextWindowLength": 20
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1400, 3240],
+      "position": [700, 1420],
       "id": "memory-proveedor-manager",
       "name": "Memory Proveedor Manager"
     },
     {
       "parameters": {
         "name": "Precios",
-        "description": "Recibe y procesa listas de precios de proveedores."
+        "description": "Procesa listas de precios de proveedores. Usa cuando el proveedor quiera subir o actualizar su lista de precios."
       },
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
-      "position": [1400, 3360],
+      "position": [1100, 1280],
       "id": "tool-precios",
       "name": "Tool: Precios"
     },
@@ -597,12 +551,12 @@
         "promptType": "define",
         "text": "={{ $json.query }}",
         "options": {
-          "systemMessage": "💰 PRECIOS\n\n🎯 ROL: Ayudar a subir listas de precios.\n\n📋 FUNCIONALIDADES:\n- Recibir archivo/imagen\n- Parsear contenido\n- Validar formato\n\n🛠️ TOOLS:\n- Parsear Lista: Extrae datos\n- Normalizador: Normaliza productos (llamado automáticamente)\n\n💡 FLUJO:\nRecibir → Parsear → Normalizador → Publicador\n\nTODO: Implementar OCR"
+          "systemMessage": "💰 PRECIOS - PROCESAMIENTO DE LISTAS\n\n🎯 ROL: Ayudar al proveedor a subir y procesar listas de precios.\n\n📋 FLUJO COMPLETO:\n1. **Recibir**: Pedir archivo/imagen de lista\n2. **Parsear**: Extraer productos y precios\n3. **Validar**: Verificar formato y datos mínimos\n4. **Mostrar Resumen**: Confirmar con proveedor\n5. **Procesar**: Normalizar y publicar (automático)\n\n🛠️ HERRAMIENTA:\n- **Parsear Lista**: Extrae datos de archivo\n  Input: { \"file_url\": \"...\", \"format\": \"pdf|excel|image\" }\n  Output: { \"products\": [...], \"parsed\": true }\n\n💡 EJEMPLO:\n\"Por favor envíame tu lista de precios (PDF, Excel o imagen).\"\n\n[Usuario envía archivo]\n\n\"Perfecto, procesé tu lista:\n✅ 45 productos encontrados\n✅ Todos con precios válidos\n\nResumen:\n- Arroz Tio João 5kg: R$ 25.90\n- Feijão Preto 1kg: R$ 8.50\n...\n\n¿Confirmas para publicar al catálogo?\"\n\n[Usuario confirma]\n\n\"✅ Lista publicada exitosamente!\n45 productos actualizados en el catálogo.\"\n\nTODO: Implementar OCR, normalización automática, publicación"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
-      "position": [1600, 3360],
+      "position": [1300, 1280],
       "id": "agent-precios",
       "name": "💰 Precios"
     },
@@ -619,7 +573,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
-      "position": [1800, 3240],
+      "position": [1500, 2240],
       "id": "openai-precios",
       "name": "OpenAI Precios",
       "credentials": {
@@ -633,21 +587,21 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId || 'session' }}",
-        "contextWindowLength": 20
+        "contextWindowLength": 25
       },
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
-      "position": [1800, 3360],
+      "position": [1500, 2360],
       "id": "memory-precios",
       "name": "Memory Precios"
     },
     {
       "parameters": {
-        "jsCode": "// TODO: Parsear PDF/Excel/Imagen con OCR\nconst file = $input.item.json.file || {};\n\nreturn {\n  parsed: true,\n  products: [\n    { name: 'Arroz 5kg', price: 25.90, unit: 'kg' },\n    { name: 'Feijão 1kg', price: 8.50, unit: 'kg' }\n  ],\n  message: 'TODO: Implementar parseo real'\n};"
+        "jsCode": "// TODO: Parsear archivo de lista de precios (PDF/Excel/Imagen con OCR)\nconst fileUrl = $input.item.json.file_url || '';\nconst format = $input.item.json.format || 'excel';\n\n// Simulación de parseo\nconst products = [\n  { name: 'Arroz Tio João 5kg', price: 25.90, unit: 'kg', category: 'Granos' },\n  { name: 'Feijão Preto 1kg', price: 8.50, unit: 'kg', category: 'Granos' },\n  { name: 'Óleo de Soja 900ml', price: 7.80, unit: 'ml', category: 'Aceites' },\n  { name: 'Açúcar Cristal 1kg', price: 4.50, unit: 'kg', category: 'Azúcares' },\n  { name: 'Café Pilão 500g', price: 15.90, unit: 'g', category: 'Bebidas' }\n];\n\nreturn {\n  parsed: true,\n  format: format,\n  products: products,\n  total_products: products.length,\n  valid_products: products.length,\n  errors: [],\n  todo: 'Implementar: 1) OCR para imágenes (Tesseract/Google Vision), 2) Parser Excel/PDF, 3) Validación de datos, 4) Normalización de unidades, 5) Matching semántico con master_list, 6) Generación de embeddings, 7) Publicación a catalog_products'\n};"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
-      "position": [1800, 3480],
+      "position": [1500, 2480],
       "id": "tool-code-parsear-lista",
       "name": "Tool Code: Parsear Lista"
     }
@@ -658,6 +612,17 @@
         [
           {
             "node": "🧠 Agente Maestro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Agente Maestro": {
+      "main": [
+        [
+          {
+            "node": "🔀 Switch Router",
             "type": "main",
             "index": 0
           }
@@ -686,20 +651,25 @@
         ]
       ]
     },
-    "Tool: Agente Base": {
-      "ai_tool": [
-        [
-          {
-            "node": "🧠 Agente Maestro",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ],
-      "ai_outputParser": [
+    "🔀 Switch Router": {
+      "main": [
         [
           {
             "node": "🏠 Agente Base",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "👤 Usuario Manager",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🏭 Proveedor Manager",
             "type": "main",
             "index": 0
           }
@@ -723,68 +693,6 @@
           {
             "node": "🏠 Agente Base",
             "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Agente Identidad": {
-      "ai_tool": [
-        [
-          {
-            "node": "🧠 Agente Maestro",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ],
-      "ai_outputParser": [
-        [
-          {
-            "node": "🎭 Agente Identidad",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "OpenAI Identidad": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "🎭 Agente Identidad",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Memory Identidad": {
-      "ai_memory": [
-        [
-          {
-            "node": "🎭 Agente Identidad",
-            "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Tool: Usuario Manager": {
-      "ai_tool": [
-        [
-          {
-            "node": "🎭 Agente Identidad",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ],
-      "ai_outputParser": [
-        [
-          {
-            "node": "👤 Usuario Manager",
-            "type": "main",
             "index": 0
           }
         ]
@@ -1024,26 +932,6 @@
         ]
       ]
     },
-    "Tool: Proveedor Manager": {
-      "ai_tool": [
-        [
-          {
-            "node": "🎭 Agente Identidad",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ],
-      "ai_outputParser": [
-        [
-          {
-            "node": "🏭 Proveedor Manager",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "OpenAI Proveedor Manager": {
       "ai_languageModel": [
         [
@@ -1128,5 +1016,5 @@
   "tags": [],
   "triggerCount": 1,
   "updatedAt": "2025-11-14T00:00:00.000Z",
-  "versionId": "2.0.0"
+  "versionId": "3.0.0"
 }
